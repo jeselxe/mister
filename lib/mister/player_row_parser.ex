@@ -41,7 +41,15 @@ defmodule Mister.PlayerRowParser do
 
     %{
       balance: find_labeled_amount(text, ["Saldo", "Balance"]),
-      total_value: find_labeled_amount(text, ["Valor del equipo", "Valor equipo", "Valor"])
+      total_value:
+        case Floki.find(doc, ".squad-info .subtitle") do
+          [el | _] ->
+            # "€ 73.923.000 · 545.000 ↑" — el primer monto es el valor total
+            el |> Floki.text() |> ParseHelpers.parse_money()
+
+          [] ->
+            find_labeled_amount(text, ["Valor del equipo", "Valor equipo"])
+        end
     }
   end
 
@@ -51,7 +59,7 @@ defmodule Mister.PlayerRowParser do
 
   defp player_nodes(doc) do
     doc
-    |> Floki.find("[data-player-id], li[id^='player-']")
+    |> Floki.find("[data-player-id], li[data-position], li[id^='player-']")
     |> case do
       [] -> Floki.find(doc, "li.player, .player-item, .market-player")
       nodes -> nodes
@@ -66,11 +74,11 @@ defmodule Mister.PlayerRowParser do
         player_id: player_id,
         name: String.trim(name),
         position: position(node),
-        price: money(node, [".price", ".player-price", "[data-price]"]),
-        clause_value: money(node, [".clause", ".clause-value", "[data-clause]"]),
+        price: money(node, [".price", ".player-price"]) || attr_money(node, "data-price"),
+        clause_value: money(node, [".clause", ".clause-value"]),
         trend: trend(node),
-        season_avg: decimal(node, [".average", ".season-average", "[data-avg]"]),
-        matchday_points: decimal(node, [".points", ".matchday-points", "[data-points]"]),
+        season_avg: decimal(node, [".avg", ".average", ".season-average"]),
+        matchday_points: decimal(node, [".points", ".matchday-points"]),
         owner_id: owner_id(node),
         hot_clause?: Floki.find(node, ".clauses-ranking-emoji") != [],
         in_lineup?: has_class?(node, "in-lineup"),
@@ -84,16 +92,28 @@ defmodule Mister.PlayerRowParser do
   defp fetch_player_id(node) do
     case Floki.attribute(node, "data-player-id") do
       [id | _] ->
-        case Integer.parse(id) do
-          {n, ""} -> {:ok, n}
-          _ -> {:error, :bad_id}
-        end
+        integer_or_error(id)
 
       [] ->
-        case ParseHelpers.extract_id(Floki.attribute(node, "id")) do
-          nil -> {:error, :no_id}
-          id -> {:ok, id}
+        # Filas de mercado (`li[data-position]`): el id va en atributos
+        # `data-id_player` de los elementos internos.
+        case Floki.attribute(node, "[data-id_player]", "data-id_player") do
+          [id | _] ->
+            integer_or_error(id)
+
+          [] ->
+            case ParseHelpers.extract_id(Floki.attribute(node, "id")) do
+              nil -> {:error, :no_id}
+              id -> {:ok, id}
+            end
         end
+    end
+  end
+
+  defp integer_or_error(id) do
+    case Integer.parse(id) do
+      {n, ""} -> {:ok, n}
+      _ -> {:error, :bad_id}
     end
   end
 
@@ -142,8 +162,15 @@ defmodule Mister.PlayerRowParser do
   end
 
   defp owner_id(node) do
-    case Floki.attribute(node, "data-user-id") do
+    case Floki.attribute(node, "data-user-id") ++ Floki.attribute(node, "data-owner") do
       [id | _] -> id
+      [] -> nil
+    end
+  end
+
+  defp attr_money(node, attr) do
+    case Floki.attribute(node, attr) do
+      [value | _] -> ParseHelpers.parse_money(value)
       [] -> nil
     end
   end
@@ -154,7 +181,7 @@ defmodule Mister.PlayerRowParser do
     |> List.first()
     |> to_string()
     |> String.split()
-    |> MapSet.member?(class)
+    |> Enum.member?(class)
   end
 
   defp find_labeled_amount(text, labels) do

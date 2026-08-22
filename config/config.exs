@@ -32,6 +32,9 @@ config :mister, Oban,
     Oban.Plugins.Pruner
   ]
 
+# Time zone database used by Oban cron (and any other timezone-aware code)
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 # Configure the endpoint
 config :mister, MisterWeb.Endpoint,
   url: [host: "localhost"],

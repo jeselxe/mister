@@ -63,6 +63,9 @@ config :mister, dev_routes: true
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 
+# Volcar el cuerpo crudo de cada respuesta HTTP a tmp/debug/ (para depurar parsers)
+config :mister, :debug_dump, true
+
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20

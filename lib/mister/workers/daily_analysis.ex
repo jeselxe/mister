@@ -43,6 +43,11 @@ defmodule Mister.Workers.DailyAnalysis do
       buy_candidates = Enum.filter(market_players, &interesting?/1)
       hot_own_players = Enum.filter(my_squad, & &1.hot_clause?)
 
+      Logger.info(
+        "DailyAnalysis: mercado=#{length(market_players)} plantilla=#{length(my_squad)} " <>
+          "candidatos=#{length(buy_candidates)} clausula_caliente=#{length(hot_own_players)}"
+      )
+
       details =
         (buy_candidates ++ hot_own_players)
         |> Enum.map(& &1.player_id)
@@ -68,6 +73,13 @@ defmodule Mister.Workers.DailyAnalysis do
         })
 
       persisted = Reports.persist!(report)
+
+      Logger.info(
+        "DailyAnalysis: informe generado (id #{persisted.id}) — " <>
+          "compras=#{length(report.buy_recommendations)} ventas=#{length(report.sell_recommendations)} " <>
+          "clausulazos=#{length(report.clause_targets)} once=#{length(report.best_lineup.players)} " <>
+          "presupuesto=#{budget.real_projected}"
+      )
 
       Phoenix.PubSub.broadcast(Mister.PubSub, "reports", {:new_report, persisted})
       :ok

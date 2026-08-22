@@ -2,9 +2,20 @@ defmodule Mister.Client do
   @moduledoc """
   Cliente HTTP para mister.mundodeportivo.com.
 
-  Todos los endpoints conocidos son `POST`. La autenticación va vía cabecera
-  `X-Auth` (token de vida corta gestionado por `Mister.Auth`) más las cookies
-  de sesión capturadas en el login manual (`MISTER_COOKIES`).
+  Todos los endpoints conocidos son `POST`. La autenticación va vía cookies
+  (`token=` vida corta + `refresh-token=` vida larga), igual que el navegador:
+  la cabecera `x-auth` NO es necesaria para el backend (verificado
+  empíricamente; con ambas cookies el servidor responde 200 con contenido
+  real, sin ellas redirige a /new-onboarding).
+
+  Los valores se configuran en `dev.secret.exs` / runtime:
+
+      config :mister, :static_token, "<JWT corto>"          # cookie `token=`
+      config :mister, :static_refresh_token, "<JWT largo>"  # cookie `refresh-token=`
+      config :mister, :x_auth, "<hash>"                     # cabecera para /ajax/sw/*
+
+  PENDIENTE: cuando se implemente el refresco automático en `Mister.Auth`,
+  inyectar aquí el token vigente del GenServer en lugar de los estáticos.
 
   Nota de eficiencia: `/ajax/sw/players` es una petición por jugador — no se
   llama para todo el mercado, solo para candidatos ya filtrados de forma barata
@@ -66,12 +77,16 @@ defmodule Mister.Client do
   end
 
   defp request(path, opts \\ []) do
-    with {:ok, token} <- auth_token() do
+    with {:ok, cookie} <- auth_cookie() do
       base_url = Application.fetch_env!(:mister, :base_url)
 
       headers =
-        [{"x-auth", token}]
-        |> maybe_add_cookie()
+        [
+          {"cookie", cookie},
+          {"origin", base_url},
+          {"partial-request", "true"},
+          {"x-requested-with", "XMLHttpRequest"}
+        ] ++ x_auth_header()
 
       req_opts = [
         url: base_url <> path,
@@ -82,34 +97,67 @@ defmodule Mister.Client do
         receive_timeout: 15_000
       ]
 
-      Req.post(req_opts)
+      case Req.post(req_opts) do
+        {:ok, %Req.Response{} = resp} ->
+          debug_dump(path, resp)
+          {:ok, resp}
+
+        error ->
+          error
+      end
     end
   end
 
-  # Token de la sesión gestionada por Mister.Auth; si el GenServer no está
-  # activo (refresh endpoint aún sin capturar), se usa un token estático
-  # inyectado a mano vía MISTER_STATIC_TOKEN.
-  defp auth_token do
-    case Mister.Auth.current_token() do
-      {:ok, token} -> {:ok, token}
-      {:error, :not_authenticated} -> static_token()
+  # Si `:debug_dump` está activo (dev), vuelca el cuerpo crudo de cada
+  # respuesta a tmp/debug/ para depurar los parsers.
+  defp debug_dump(path, %Req.Response{status: status, body: body}) do
+    if Application.get_env(:mister, :debug_dump, false) do
+      dir = Path.join([File.cwd!(), "tmp", "debug"])
+      File.mkdir_p!(dir)
+
+      stamp = System.system_time(:millisecond)
+      safe_path = path |> String.replace("/", "_") |> String.replace("?", "-")
+      ext = if is_map(body), do: "json", else: "html"
+      file = Path.join(dir, "#{stamp}-#{safe_path}.#{ext}")
+
+      content = if is_map(body), do: Jason.encode!(body), else: body
+      File.write!(file, content)
+      Logger.debug("Mister.Client: respuesta volcada en #{file} (status #{status})")
     end
+
+    :ok
   end
 
-  defp static_token do
+  # Cookie de autenticación con el mismo formato que envía el navegador:
+  # "token=<JWT>; refresh-token=<JWT>". El `refresh-token` es opcional pero
+  # sin él el servidor redirige a /new-onboarding.
+  defp auth_cookie do
     case Application.get_env(:mister, :static_token) do
-      token when is_binary(token) and token != "" -> {:ok, token}
-      _ -> {:error, :not_authenticated}
-    end
-  end
-
-  defp maybe_add_cookie(headers) do
-    case Application.get_env(:mister, :cookies) do
-      cookies when is_binary(cookies) and cookies != "" ->
-        [{"cookie", cookies} | headers]
+      token when is_binary(token) and token != "" ->
+        {:ok, "token=" <> token <> refresh_part()}
 
       _ ->
-        headers
+        {:error, :not_authenticated}
+    end
+  end
+
+  defp refresh_part do
+    case Application.get_env(:mister, :static_refresh_token) do
+      refresh when is_binary(refresh) and refresh != "" ->
+        "; refresh-token=" <> refresh
+
+      _ ->
+        ""
+    end
+  end
+
+  # Los endpoints `/ajax/sw/*` exigen la cabecera `x-auth` (401 sin ella);
+  # las páginas HTML no la necesitan. El valor es estable por sesión/cuenta:
+  # se copia del navegador y se configura como `:x_auth`.
+  defp x_auth_header do
+    case Application.get_env(:mister, :x_auth) do
+      value when is_binary(value) and value != "" -> [{"x-auth", value}]
+      _ -> []
     end
   end
 end
