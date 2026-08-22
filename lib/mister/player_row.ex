@@ -1,0 +1,39 @@
+defmodule Mister.PlayerRow do
+  @moduledoc """
+  Fila de jugador extraída del HTML de `/market` o `/team`.
+
+  El `<li>` de un jugador es prácticamente idéntico en ambas páginas, por eso
+  `Mister.MarketParser` y `Mister.PlayerRowParser` comparten esta estructura.
+  """
+
+  @enforce_keys [:player_id, :name]
+  defstruct [
+    :player_id,
+    :name,
+    :position,
+    :price,
+    :clause_value,
+    :trend,
+    :season_avg,
+    :matchday_points,
+    :owner_id,
+    hot_clause?: false,
+    in_lineup?: false,
+    for_sale?: false
+  ]
+
+  @type t :: %__MODULE__{
+          player_id: integer(),
+          name: String.t(),
+          position: integer() | nil,
+          price: integer() | nil,
+          clause_value: integer() | nil,
+          trend: :up | :down | :flat | nil,
+          season_avg: float() | nil,
+          matchday_points: float() | nil,
+          owner_id: String.t() | nil,
+          hot_clause?: boolean(),
+          in_lineup?: boolean(),
+          for_sale?: boolean()
+        }
+end

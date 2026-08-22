@@ -1,0 +1,323 @@
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  <div class="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <%!-- Cabecera --%>
+    <div class="flex flex-wrap items-center justify-between gap-4" id="report-header">
+      <div>
+        <h1 class="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+          Informe diario <span class="text-emerald-600">Mister</span>
+        </h1>
+        <p class="mt-1 text-sm text-slate-500">
+          {if(@report, do: Date.to_string(@report.report_date), else: "sin informe")} · el sistema recomienda, tú ejecutas
+        </p>
+      </div>
+      <button
+        id="run-analysis"
+        type="button"
+        phx-click="run_analysis"
+        class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-600/30 transition hover:-translate-y-0.5 hover:bg-emerald-500 hover:shadow-lg active:translate-y-0"
+      >
+        <.icon name="hero-arrow-path" class="h-4 w-4" /> Ejecutar análisis ahora
+      </button>
+    </div>
+
+    <%= if @report == nil do %>
+      <%!-- Estado vacío --%>
+      <div
+        id="empty-report"
+        class="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm"
+      >
+        <.icon name="hero-moon" class="mx-auto h-10 w-10 text-slate-300" />
+        <p class="mt-3 font-semibold text-slate-700">Todavía no hay informe</p>
+        <p class="mt-1 text-sm text-slate-500">
+          El análisis corre cada día a las 7:00 (hora española) o puedes lanzarlo ahora mismo.
+        </p>
+      </div>
+    <% else %>
+      <%!-- Alertas (prioridad máxima: presupuesto en rojo) --%>
+      <div id="alerts" class="space-y-2">
+        <div
+          :for={alert <- @report.alerts || []}
+          class={[
+            "flex items-start gap-3 rounded-xl border px-4 py-3 text-sm font-medium shadow-sm",
+            if(red_alert?(alert),
+              do: "border-red-300 bg-red-50 text-red-800",
+              else: "border-amber-300 bg-amber-50 text-amber-900"
+            )
+          ]}
+        >
+          <.icon
+            name={
+              if red_alert?(alert),
+                do: "hero-exclamation-triangle",
+                else: "hero-information-circle"
+            }
+            class="mt-0.5 h-5 w-5 shrink-0"
+          />
+          {alert}
+        </div>
+      </div>
+
+      <%!-- Presupuesto --%>
+      <% budget = @report.budget_summary || %{} %>
+      <section id="budget-summary" class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Saldo real</p>
+          <p class={balance_classes(budget["real_now"])}>
+            {money(budget["real_now"])}
+          </p>
+          <p class="mt-0.5 text-xs text-slate-400">disponible ahora mismo</p>
+        </div>
+        <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Proyectado tras ventas
+          </p>
+          <p class="mt-1 text-xl font-black text-slate-900">{money(budget["real_projected"])}</p>
+          <p class="mt-0.5 text-xs text-slate-400">si se venden los jugadores en venta</p>
+        </div>
+        <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Puja máx. actual
+          </p>
+          <p class="mt-1 text-xl font-black text-slate-900">{money(budget["bid_allowed_now"])}</p>
+          <p class="mt-0.5 text-xs text-slate-400">{bid_rule_label(budget["bid_rule"] || "")}</p>
+        </div>
+        <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Puja máx. proyectada
+          </p>
+          <p class="mt-1 text-xl font-black text-slate-900">
+            {money(budget["bid_allowed_projected"])}
+          </p>
+          <p class="mt-0.5 text-xs text-slate-400">tras cerrar las ventas</p>
+        </div>
+      </section>
+
+      <div class="grid gap-6 lg:grid-cols-5">
+        <div class="space-y-6 lg:col-span-3">
+          <%!-- Clausulazos --%>
+          <section id="clauses" class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+              <.icon name="hero-bolt" class="h-5 w-5 text-amber-500" /> Clausulazos pagables
+            </h2>
+            <p class="hidden" id="clauses-empty"></p>
+            <ul class="mt-3 divide-y divide-slate-100">
+              <li
+                :for={target <- List.wrap(@report.clause_targets)}
+                id={"clause-#{target["player_id"]}"}
+                class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+              >
+                <div>
+                  <p class="font-bold text-slate-900">{target["name"]}</p>
+                  <p class="text-xs text-slate-500">
+                    ratio {pts(target["value_per_million"])} pts/M€ · ¡primero que llegue se lo lleva!
+                  </p>
+                </div>
+                <span class="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-sm font-black text-amber-800 ring-1 ring-amber-300">
+                  ⚡ {money(target["clause_price"])}
+                </span>
+              </li>
+            </ul>
+            <p
+              :if={@report.clause_targets in [nil, []]}
+              class="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"
+              id="clauses-none"
+            >
+              No hay clausulazos pagables con tu saldo actual.
+            </p>
+          </section>
+
+          <%!-- Checklist del día --%>
+          <section id="checklist" class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+              <.icon name="hero-check-circle" class="h-5 w-5 text-emerald-600" /> Tareas del día
+            </h2>
+            <ul class="mt-3 space-y-2">
+              <li
+                :for={action <- @actions}
+                id={"action-#{action.id}"}
+                class={action_classes(action)}
+              >
+                <span class={[
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+                  if(action.kind == "clause",
+                    do: "bg-amber-500/15 text-amber-600",
+                    else: "bg-slate-100 text-slate-600"
+                  )
+                ]}>
+                  <.icon name={kind_icon(action.kind)} class="h-4 w-4" />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class={[
+                    "truncate text-sm font-semibold text-slate-800",
+                    done?(action) && "line-through decoration-emerald-600/60"
+                  ]}>
+                    {action.description}
+                  </p>
+                  <p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                    {kind_label(action.kind)}{if(action.suggested_amount,
+                      do: " · " <> money(action.suggested_amount),
+                      else: ""
+                    )}
+                  </p>
+                </div>
+                <%= if pending?(action) do %>
+                  <button
+                    type="button"
+                    phx-click="complete_action"
+                    phx-value-id={action.id}
+                    id={"complete-action-#{action.id}"}
+                    title="Marcar como hecha"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-emerald-600 transition hover:bg-emerald-100 active:scale-90"
+                  >
+                    <.icon name="hero-check" class="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="dismiss_action"
+                    phx-value-id={action.id}
+                    id={"dismiss-action-#{action.id}"}
+                    title="Descartar"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 active:scale-90"
+                  >
+                    <.icon name="hero-x-mark" class="h-5 w-5" />
+                  </button>
+                <% else %>
+                  <button
+                    type="button"
+                    phx-click="undo_action"
+                    phx-value-id={action.id}
+                    id={"undo-action-#{action.id}"}
+                    title="Deshacer"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 active:scale-90"
+                  >
+                    <.icon name="hero-arrow-path" class="h-4 w-4" />
+                  </button>
+                <% end %>
+              </li>
+            </ul>
+            <p
+              :if={@actions == []}
+              class="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"
+              id="checklist-empty"
+            >
+              Sin tareas pendientes para hoy.
+            </p>
+          </section>
+        </div>
+
+        <div class="space-y-6 lg:col-span-2">
+          <%!-- Alineación óptima --%>
+          <section
+            id="best-lineup"
+            class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+          >
+            <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+              <.icon name="hero-flag" class="h-5 w-5 text-emerald-600" /> Alineación óptima
+            </h2>
+            <div class="mt-3">
+              <FormationPitch.pitch id="formation-pitch" lineup={@report.best_lineup} />
+            </div>
+            <div
+              :if={(get_in(@report.best_lineup, ["excluded"]) || []) != []}
+              id="excluded-players"
+              class="mt-3 space-y-1.5"
+            >
+              <p class="text-xs font-bold uppercase tracking-wide text-slate-400">
+                Fuera por lesión/sanción:
+              </p>
+              <p
+                :for={excluded <- get_in(@report.best_lineup, ["excluded"])}
+                id={"excluded-#{excluded["player_id"]}"}
+                class="flex items-center gap-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-800 ring-1 ring-red-200"
+              >
+                <.icon name="hero-heart" class="h-3.5 w-3.5 shrink-0" />
+                <span class="font-bold">{excluded["name"]}</span>
+                <span class="truncate opacity-80">— {excluded["reason"]}</span>
+              </p>
+            </div>
+          </section>
+
+          <%!-- Fichajes recomendados --%>
+          <section
+            id="buy-recommendations"
+            class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+          >
+            <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+              <.icon name="hero-shopping-bag" class="h-5 w-5 text-sky-600" />
+              Fichajes recomendados
+            </h2>
+            <ul class="mt-3 divide-y divide-slate-100">
+              <li
+                :for={rec <- List.wrap(@report.buy_recommendations)}
+                id={"buy-#{rec["player_id"]}"}
+                class="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+              >
+                <div class="min-w-0">
+                  <p class="flex items-center gap-1.5 font-bold text-slate-900">
+                    {rec["name"]}
+                    <.icon name={trend_icon(rec["trend"])} class="h-4 w-4" />
+                  </p>
+                  <p class="text-xs text-slate-500">
+                    media {pts(rec["season_avg"])} · precio {money(rec["price"])}
+                  </p>
+                </div>
+                <span class="shrink-0 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 ring-1 ring-sky-200">
+                  pujar hasta {money(rec["suggested_bid"])}
+                </span>
+              </li>
+            </ul>
+            <p
+              :if={@report.buy_recommendations in [nil, []]}
+              class="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"
+              id="buys-none"
+            >
+              Sin fichajes recomendados hoy.
+            </p>
+          </section>
+
+          <%!-- Ventas sugeridas --%>
+          <section
+            id="sell-recommendations"
+            class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+          >
+            <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+              <.icon name="hero-banknotes" class="h-5 w-5 text-violet-600" />
+              En venta (oferta de la banca)
+            </h2>
+            <ul class="mt-3 divide-y divide-slate-100">
+              <li
+                :for={rec <- List.wrap(@report.sell_recommendations)}
+                id={"sell-#{rec["player_id"]}"}
+                class="py-2.5 first:pt-0 last:pb-0"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <p class="font-bold text-slate-900">{rec["name"]}</p>
+                  <p class="text-xs text-slate-500">valor {money(rec["market_price"])}</p>
+                </div>
+                <% range = rec["sale_range"] || %{} %>
+                <div class="mt-1 grid grid-cols-3 gap-1.5 text-center text-xs">
+                  <span class="rounded-md bg-red-50 px-1.5 py-1 font-semibold text-red-700 ring-1 ring-red-100">
+                    pesimista<br /><span class="font-black">{money(range["pessimistic"])}</span>
+                  </span>
+                  <span class="rounded-md bg-slate-100 px-1.5 py-1 font-semibold text-slate-700 ring-1 ring-slate-200">
+                    esperado<br /><span class="font-black">{money(range["expected"])}</span>
+                  </span>
+                  <span class="rounded-md bg-emerald-50 px-1.5 py-1 font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                    optimista<br /><span class="font-black">{money(range["optimistic"])}</span>
+                  </span>
+                </div>
+              </li>
+            </ul>
+            <p
+              :if={@report.sell_recommendations in [nil, []]}
+              class="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"
+              id="sells-none"
+            >
+              Nadie en venta ahora mismo.
+            </p>
+          </section>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</Layouts.app>
