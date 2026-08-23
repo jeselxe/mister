@@ -300,34 +300,72 @@ defmodule MisterWeb.ReportLive do
 
   def purchase_line(_, _), do: nil
 
-  # Recomendación de oferta recibida. Dos factores:
-  #   * ganancia: puja vs valor de mercado actual
-  #   * expectativa: si el jugador está en alza, aguantar puede darnos más
+  # Recomendación de oferta recibida. Tres factores:
+  #   * ganancia vs valor de mercado (bid/value)
+  #   * expectativa: en alza, aguantar puede darnos más
+  #   * beneficio real: lo pagamos vs lo que nos ofrecen (transfer.price)
   def offer_advice(%{bid: bid, value: value} = offer)
       when is_integer(bid) and is_integer(value) and value > 0 do
     ratio = bid / value
     gain = trunc((ratio - 1) * 100)
+    profit_part = profit_part(offer)
 
     cond do
+      # Plusvalía fuerte (≥50% sobre lo pagado) con una puja razonable:
+      # mejor lo seguro aunque el jugador siga en alza.
+      big_profit?(offer) and ratio >= 0.90 ->
+        {:accept, "plusvalía fuerte#{profit_part}; mejor lo seguro"}
+
       offer[:trend_dir] == :up and ratio < 1.10 ->
         {:deny,
-         "en alza: aguantando puedes ganar más (oferta al #{trunc(ratio * 100)}% del valor)"}
+         "en alza: aguantando puedes ganar más (oferta al #{trunc(ratio * 100)}% del valor)#{profit_part}"}
 
       offer[:trend_dir] == :up ->
-        {:accept, "+#{gain}% sobre un jugador en alza: plus excelente"}
+        {:accept, "+#{gain}% sobre un jugador en alza#{profit_part}: plus excelente"}
 
       offer[:trend_dir] == :down and ratio >= 0.90 ->
-        {:accept, "tendencia bajista: asegura la venta al #{trunc(ratio * 100)}% del valor"}
+        {:accept,
+         "tendencia bajista: asegura la venta al #{trunc(ratio * 100)}% del valor#{profit_part}"}
 
       ratio >= 1.0 ->
-        {:accept, "puja ≥ valor de mercado (+#{gain}%)"}
+        {:accept, "puja ≥ valor de mercado (+#{gain}%)#{profit_part}"}
+
+      sale_at_loss?(offer) and offer[:trend_dir] != :down ->
+        {:deny, "por debajo del valor y encima venderías a pérdidas#{profit_part}"}
+
+      in_profit?(offer) and ratio >= 0.95 ->
+        {:accept, "cerca del valor y vendes con beneficio#{profit_part}"}
+
+      big_profit?(offer) ->
+        {:accept, "beneficio sólido frente a lo pagado#{profit_part}; asegura la plusvalía"}
 
       true ->
-        {:deny, "solo #{trunc(ratio * 100)}% del valor y sin expectativa de subida"}
+        {:deny, "solo #{trunc(ratio * 100)}% del valor y sin margen claro#{profit_part}"}
     end
   end
 
   def offer_advice(_), do: {:deny, "datos incompletos"}
+
+  defp sale_at_loss?(%{paid_price: paid, bid: bid}) when is_integer(paid), do: bid < paid
+  defp sale_at_loss?(_), do: false
+
+  defp in_profit?(%{paid_price: paid, bid: bid}) when is_integer(paid), do: bid >= paid
+  defp in_profit?(_), do: false
+
+  # +50% o más sobre lo pagado: plusvalía difícil de rechazar aunque el
+  # jugador siga valiendo algo más en el mercado.
+  defp big_profit?(%{paid_price: paid, bid: bid}) when is_integer(paid) and paid > 0,
+    do: (bid - paid) / paid >= 0.5
+
+  defp big_profit?(_), do: false
+
+  defp profit_part(%{paid_price: paid, bid: bid}) when is_integer(paid) and paid > 0 do
+    pct = trunc((bid - paid) / paid * 100)
+    sign = if(pct >= 0, do: "+", else: "")
+    " · #{sign}#{pct}% sobre lo pagado"
+  end
+
+  defp profit_part(_), do: ""
 
   def offer_advice_classes({:accept, _}),
     do:
