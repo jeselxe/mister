@@ -128,6 +128,59 @@ defmodule Mister.Client do
     :ok
   end
 
+  @doc """
+  Saldo del usuario (actual y proyectado) desde el estado embebido en la
+  página completa de `/market` (`var _FG_cfg = {...}` → `user.balance`).
+
+  Requiere petición completa (sin cabecera `partial-request`): el fragmento
+  AJAX no incluye el `_FG_cfg`.
+  """
+  def fetch_balance do
+    with {:ok, cookie} <- auth_cookie() do
+      base_url = Application.fetch_env!(:mister, :base_url)
+
+      req_opts = [
+        url: base_url <> "/market",
+        headers: [{"cookie", cookie}, {"x-requested-with", "XMLHttpRequest"}] ++ x_auth_header(),
+        retry: :transient,
+        connect_options: [timeout: 10_000],
+        receive_timeout: 15_000
+      ]
+
+      with {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) <-
+             Req.post(req_opts),
+           {:ok, cfg} <- extract_fg_cfg(body),
+           %{} = bal <- get_in(cfg, ["user", "balance"]) do
+        {:ok,
+         %{
+           current: bal["current"] || 0,
+           future: bal["future"] || 0,
+           max_debt: bal["maxDebt"] || 0
+         }}
+      else
+        {:ok, %Req.Response{status: status}} ->
+          Logger.error("Mister.Client: /market (completa) respondió #{status}")
+          {:error, {:http_status, status}}
+
+        error ->
+          error
+      end
+    end
+  end
+
+  # Extrae y decodifica el JSON de `var _FG_cfg = {...};`
+  defp extract_fg_cfg(body) do
+    case Regex.run(~r/var _FG_cfg = (\{.*?\});/s, body, capture: :all_but_first) do
+      [json] ->
+        Jason.decode(json)
+
+      [] ->
+        {:error, :fg_cfg_not_found}
+    end
+  catch
+    _, _ -> {:error, :fg_cfg_decode_failed}
+  end
+
   # Cookie de autenticación con el mismo formato que envía el navegador:
   # "token=<JWT>; refresh-token=<JWT>". El `refresh-token` es opcional pero
   # sin él el servidor redirige a /new-onboarding.

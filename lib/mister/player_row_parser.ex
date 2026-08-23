@@ -72,9 +72,12 @@ defmodule Mister.PlayerRowParser do
          {:ok, name} <- fetch_name(node) do
       %PlayerRow{
         player_id: player_id,
-        name: String.trim(name),
+        name: name |> String.trim() |> String.replace(~r/\s+/, " "),
         position: position(node),
-        price: money(node, [".price", ".player-price"]) || attr_money(node, "data-price"),
+        price:
+          money(node, [".price", ".player-price"]) ||
+            attr_money(node, "data-price") ||
+            money(node, [".underName"]),
         clause_value: money(node, [".clause", ".clause-value"]),
         trend: trend(node),
         season_avg: decimal(node, [".avg", ".average", ".season-average"]),
@@ -82,7 +85,7 @@ defmodule Mister.PlayerRowParser do
         owner_id: owner_id(node),
         hot_clause?: Floki.find(node, ".clauses-ranking-emoji") != [],
         in_lineup?: has_class?(node, "in-lineup"),
-        for_sale?: has_class?(node, "on-sale") or has_class?(node, "for-sale")
+        for_sale?: for_sale?(node)
       }
     else
       _ -> nil
@@ -133,9 +136,13 @@ defmodule Mister.PlayerRowParser do
   end
 
   defp position(node) do
-    case Floki.attribute(node, "data-position") do
+    # /team: el li no lleva data-position; está en el div interno
+    # `.player-position[data-position]`. /market: en el propio li.
+    with [] <- Floki.attribute(node, "data-position"),
+         [] <- Floki.attribute(node, ".player-position", "data-position") do
+      nil
+    else
       [pos | _] -> ParseHelpers.parse_int(pos)
-      _ -> nil
     end
   end
 
@@ -173,6 +180,17 @@ defmodule Mister.PlayerRowParser do
       [value | _] -> ParseHelpers.parse_money(value)
       [] -> nil
     end
+  end
+
+  # Un jugador está "en venta" cuando su botón de gestión es el variante
+  # activa (clase btn--accent / texto "En venta"); si no, muestra "Gestionar".
+  defp for_sale?(node) do
+    node
+    |> Floki.find(".btn-sale")
+    |> Enum.any?(fn btn ->
+      String.contains?(String.downcase(Floki.text(btn)), "en venta") or
+        has_class?(btn, "btn--accent")
+    end)
   end
 
   defp has_class?(node, class) do

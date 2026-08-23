@@ -55,8 +55,19 @@ defmodule Mister.Workers.DailyAnalysis do
         |> fetch_details()
 
       sale_candidates = sale_candidates(my_squad)
-      balance = squad_summary.balance || 0
       total_value = squad_summary.total_value || 0
+
+      # Saldo real desde el estado embebido de la web; si falla, cae al
+      # texto de /team (o 0).
+      balance =
+        case Client.fetch_balance() do
+          {:ok, %{current: current}} ->
+            current
+
+          {:error, reason} ->
+            Logger.warning("DailyAnalysis: sin saldo (#{inspect(reason)}); uso fallback")
+            squad_summary.balance || 0
+        end
 
       budget = BudgetEngine.available_budget(balance, total_value, sale_candidates)
       clause_targets = ClauseDetector.find_opportunities(details, budget.real_projected)

@@ -37,3 +37,14 @@ defmodule Mister.PlayerRow do
           for_sale?: boolean()
         }
 end
+
+# Los informes guardan filas de jugador en columnas JSONB; se serializa el
+# struct completo (incluye claves dinámicas como :expected_points/:is_captain
+# que añade LineupOptimizer).
+defimpl Jason.Encoder, for: Mister.PlayerRow do
+  def encode(value, opts) do
+    value
+    |> Map.from_struct()
+    |> Jason.Encoder.encode(opts)
+  end
+end
