@@ -55,6 +55,9 @@ defmodule Mister.Client do
         position: o["position"],
         bid: o["bid"],
         value: o["value"],
+        prev_value: o["prev_value"],
+        # dirección de tendencia según el valor actual vs el anterior
+        trend_dir: trend_dir(o["value"], o["prev_value"]),
         asking_price: o["price"],
         date: o["date"],
         bidder: o["uname"],
@@ -65,6 +68,14 @@ defmodule Mister.Client do
     end)
     |> Enum.sort_by(& &1.bid, :desc)
   end
+
+  defp trend_dir(value, prev) when is_integer(value) and is_integer(prev) and value > prev,
+    do: :up
+
+  defp trend_dir(value, prev) when is_integer(value) and is_integer(prev) and value < prev,
+    do: :down
+
+  defp trend_dir(_, _), do: :flat
 
   @cdn "https://cdn-mister.mundodeportivo.com/file/cdn-common"
 

@@ -209,6 +209,8 @@ defmodule Mister.Reports do
       %{
         player_id: row.player_id,
         name: row.name,
+        position: row.position,
+        trend: to_string(row.trend || :flat),
         market_price: row.price,
         sale_range: SaleEstimator.expected_range(row.price)
       }
@@ -222,11 +224,12 @@ defmodule Mister.Reports do
       %{
         player_id: row.player_id,
         name: row.name,
+        position: row.position,
         price: row.price,
         season_avg: row.season_avg,
         trend: to_string(row.trend || :flat),
-        # banca = sin propietario conocido; usuario = listado por un rival
-        source: if(row.owner_id in [nil, "0"], do: "banca", else: "usuario"),
+        source: source(row),
+        seller_name: seller_label(row),
         suggested_bid: suggested_bid(row.price, budget.bid_allowed_now)
       }
     end)
@@ -235,6 +238,19 @@ defmodule Mister.Reports do
   defp affordable?(_price, :unlimited), do: true
   defp affordable?(price, cap) when is_integer(cap), do: not is_nil(price) and price <= cap
   defp affordable?(_price, _cap), do: false
+
+  # Banca = sin propietario (data-owner="0") o vendedor "Libre"/"Mister".
+  # Cualquier otro caso es un listado de usuario.
+  defp source(%{owner_id: owner, seller_name: seller}) do
+    if owner in [nil, "0"] and seller in [nil, "", "Libre", "Mister"],
+      do: "banca",
+      else: "usuario"
+  end
+
+  # Nombre del vendedor solo para listados de usuario (en banca es irrelevante).
+  defp seller_label(%{owner_id: owner, seller_name: seller}) do
+    if owner in [nil, "0"] and seller in [nil, "", "Libre", "Mister"], do: nil, else: seller
+  end
 
   # Puja sugerida: precio + 5%, sin pasar nunca del máximo permitido por la liga.
   defp suggested_bid(nil, _cap), do: nil

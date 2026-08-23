@@ -83,6 +83,7 @@ defmodule Mister.PlayerRowParser do
         season_avg: decimal(node, [".avg", ".average", ".season-average"]),
         matchday_points: decimal(node, [".points", ".matchday-points"]),
         owner_id: owner_id(node),
+        seller_name: seller_name(node),
         hot_clause?: Floki.find(node, ".clauses-ranking-emoji") != [],
         in_lineup?: has_class?(node, "in-lineup"),
         for_sale?: for_sale?(node)
@@ -179,6 +180,26 @@ defmodule Mister.PlayerRowParser do
     case Floki.attribute(node, attr) do
       [value | _] -> ParseHelpers.parse_money(value)
       [] -> nil
+    end
+  end
+
+  # Nombre del vendedor en la cabecera de la fila de mercado:
+  # "ElHu$tler," / "Aitor Sagasta," / "Libre," (banca) / "Jesus," (nosotros).
+  defp seller_name(node) do
+    case Floki.find(node, ".header .date") do
+      [el | _] ->
+        el
+        |> Floki.text()
+        |> String.split(",")
+        |> List.first()
+        |> String.trim()
+        |> case do
+          "" -> nil
+          name -> name
+        end
+
+      [] ->
+        nil
     end
   end
 

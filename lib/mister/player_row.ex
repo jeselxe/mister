@@ -17,6 +17,7 @@ defmodule Mister.PlayerRow do
     :season_avg,
     :matchday_points,
     :owner_id,
+    :seller_name,
     hot_clause?: false,
     in_lineup?: false,
     for_sale?: false
@@ -32,6 +33,7 @@ defmodule Mister.PlayerRow do
           season_avg: float() | nil,
           matchday_points: float() | nil,
           owner_id: String.t() | nil,
+          seller_name: String.t() | nil,
           hot_clause?: boolean(),
           in_lineup?: boolean(),
           for_sale?: boolean()

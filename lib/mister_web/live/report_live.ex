@@ -187,6 +187,39 @@ defmodule MisterWeb.ReportLive do
   def trend_icon("down"), do: "hero-arrow-trending-down"
   def trend_icon(_), do: "hero-arrow-long-right"
 
+  # Chip de tendencia bien visible (verde/rojo/gris con flecha).
+  def trend_classes("up"),
+    do:
+      "inline-flex items-center gap-0.5 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-300"
+
+  def trend_classes("down"),
+    do:
+      "inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[11px] font-black text-red-700 ring-1 ring-red-300"
+
+  def trend_classes(_),
+    do:
+      "inline-flex items-center gap-0.5 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-500 ring-1 ring-slate-200"
+
+  def trend_label("up"), do: "alza"
+  def trend_label("down"), do: "baja"
+  def trend_label(_), do: "plano"
+
+  @pos_labels %{1 => "PT", 2 => "DF", 3 => "MD", 4 => "DC"}
+  def pos_label(pos) when is_integer(pos) and is_map_key(@pos_labels, pos),
+    do: Map.get(@pos_labels, pos)
+
+  def pos_label(pos) when is_binary(pos) do
+    case Integer.parse(pos) do
+      {p, _} -> pos_label(p)
+      _ -> nil
+    end
+  end
+
+  def pos_label(_), do: nil
+
+  def pos_classes(pos_label) when pos_label in ["PT", "DF", "MD", "DC"],
+    do: "rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-white"
+
   def kind_icon("clause"), do: "hero-bolt"
   def kind_icon("buy"), do: "hero-shopping-bag"
   def kind_icon("sell"), do: "hero-banknotes"
@@ -205,16 +238,70 @@ defmodule MisterWeb.ReportLive do
   def player_photo_url(nil), do: nil
   def player_photo_url(player_id), do: Mister.Client.player_photo_url(player_id)
 
-  # Recomendación de oferta recibida: aceptar si la puja cubre el valor de
-  # mercado (no regalamos el fichaje); si está claramente por debajo, rechazar.
-  def offer_advice(%{bid: bid, value: value})
+  # Fusiona las ventas recomendadas del informe con las ofertas recibidas en
+  # vivo (por player_id). Las ofertas sin venta asociada van al final.
+  def sales_with_offers(nil, _offers), do: []
+
+  def sales_with_offers(report, offers) do
+    sells = List.wrap(report.sell_recommendations)
+
+    matched_ids = Enum.map(sells, & &1["player_id"])
+
+    sales =
+      Enum.map(sells, fn rec ->
+        %{rec: rec, offer: Enum.find(offers, &(&1.player_id == rec["player_id"]))}
+      end)
+
+    extras =
+      offers
+      |> Enum.reject(&(&1.player_id in matched_ids))
+      |> Enum.map(fn offer -> %{rec: phantom_rec(offer), offer: offer} end)
+
+    sales ++ extras
+  end
+
+  # Oferta sobre un jugador que ya no figura en el informe (report obsoleto):
+  # mostramos los datos de la propia oferta.
+  defp phantom_rec(offer) do
+    %{
+      "player_id" => offer.player_id,
+      "name" => offer.name,
+      "position" => offer.position,
+      "trend" => to_string(offer.trend_dir),
+      "market_price" => offer.value,
+      "sale_range" => nil
+    }
+  end
+
+  def offer_advice_pct(%{bid: bid, value: value}) when is_integer(value) and value > 0,
+    do: "#{trunc(bid / value * 100)}%"
+
+  def offer_advice_pct(_), do: "?"
+
+  # Recomendación de oferta recibida. Dos factores:
+  #   * ganancia: puja vs valor de mercado actual
+  #   * expectativa: si el jugador está en alza, aguantar puede darnos más
+  def offer_advice(%{bid: bid, value: value} = offer)
       when is_integer(bid) and is_integer(value) and value > 0 do
     ratio = bid / value
+    gain = trunc((ratio - 1) * 100)
 
     cond do
-      ratio >= 1.0 -> {:accept, "puja ≥ valor de mercado"}
-      ratio >= 0.9 -> {:hold, "justa: #{trunc(ratio * 100)}% del valor"}
-      true -> {:deny, "solo #{trunc(ratio * 100)}% del valor"}
+      offer[:trend_dir] == :up and ratio < 1.10 ->
+        {:deny,
+         "en alza: aguantando puedes ganar más (oferta al #{trunc(ratio * 100)}% del valor)"}
+
+      offer[:trend_dir] == :up ->
+        {:accept, "+#{gain}% sobre un jugador en alza: plus excelente"}
+
+      offer[:trend_dir] == :down and ratio >= 0.90 ->
+        {:accept, "tendencia bajista: asegura la venta al #{trunc(ratio * 100)}% del valor"}
+
+      ratio >= 1.0 ->
+        {:accept, "puja ≥ valor de mercado (+#{gain}%)"}
+
+      true ->
+        {:deny, "solo #{trunc(ratio * 100)}% del valor y sin expectativa de subida"}
     end
   end
 
