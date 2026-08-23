@@ -100,42 +100,34 @@ defmodule MisterWeb.Components.FormationPitch do
   ## Internals
 
   # Divide la plantilla en filas (arriba → abajo): delanteros, medios,
-  # defensas, portero. Los jugadores llegan ordenados GK ++ DEF ++ MID ++ FWD
-  # desde el optimizador, así que las cantidades salen de la formación.
+  # defensas, portero, agrupando por la demarcación real de cada jugador
+  # (1=PT, 2=DF, 3=MD, 4=DC) en lugar de fiarnos del orden de la lista.
   defp rows(lineup) do
-    formation = get_key(lineup, :formation)
     players = get_key(lineup, :players) || []
-    line_counts = counts(formation)
+    by_pos = Enum.group_by(players, fn p -> pos_int(get_key(p, :position)) end)
 
-    if length(players) == Enum.sum(line_counts) and line_counts != [] do
-      players |> Enum.reverse() |> chunk_rows(Enum.reverse(line_counts))
+    fwd = by_pos[4] || []
+    mid = by_pos[3] || []
+    defs = by_pos[2] || []
+    gk = by_pos[1] || []
+
+    if fwd == [] and mid == [] and defs == [] and gk == [] do
+      [players]
     else
-      [Enum.reverse(players)]
+      [fwd, mid, defs, gk]
     end
   end
 
-  defp counts(formation) when is_binary(formation) do
-    case formation |> String.split("-") |> Enum.map(&parse_int/1) do
-      [d, m, f] -> [f, m, d, 1]
-      _ -> []
+  defp pos_int(p) when is_integer(p), do: p
+
+  defp pos_int(p) when is_binary(p) do
+    case Integer.parse(p) do
+      {n, _} -> n
+      _ -> nil
     end
   end
 
-  defp counts(_), do: []
-
-  defp parse_int(s) do
-    case Integer.parse(s) do
-      {n, ""} -> n
-      _ -> 0
-    end
-  end
-
-  defp chunk_rows(_players, []), do: []
-
-  defp chunk_rows(players, [count | rest]) do
-    {row, remaining} = Enum.split(players, count)
-    [row | chunk_rows(remaining, rest)]
-  end
+  defp pos_int(_), do: nil
 
   # Filtra filas vacías pero conserva el índice original como clave estable.
   defp row_items(rows) do

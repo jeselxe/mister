@@ -427,6 +427,12 @@
                         )})
                       </span>
                     </p>
+                    <p
+                      :if={purchase_line(offer, nil)}
+                      class="mt-0.5 text-[11px] font-medium text-orange-800"
+                    >
+                      {purchase_line(offer, nil)}
+                    </p>
                     <p class="mt-0.5 text-[11px] text-orange-700">
                       {elem(offer_advice(offer), 1)}
                     </p>

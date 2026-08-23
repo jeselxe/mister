@@ -99,7 +99,7 @@ defmodule MisterWeb.ReportLive do
   defp load_offers(socket) do
     case Mister.Client.fetch_offers_received() do
       {:ok, offers} ->
-        assign(socket, :offers, offers)
+        assign(socket, :offers, Enum.map(offers, &enrich_with_purchase_price/1))
         |> assign(:offers_error, nil)
 
       {:error, reason} ->
@@ -107,6 +107,19 @@ defmodule MisterWeb.ReportLive do
 
         assign(socket, :offers, [])
         |> assign(:offers_error, reason)
+    end
+  end
+
+  # Añade lo que pagamos por el jugador (detalle JSON → transfer.price) para
+  # poder mostrar el balance real de la operación.
+  defp enrich_with_purchase_price(offer) do
+    case Mister.Client.player_detail(offer.player_id) do
+      {:ok, %{"data" => %{"player" => %{"transfer" => %{"price" => paid}}}}}
+      when is_integer(paid) ->
+        Map.put(offer, :paid_price, paid)
+
+      _ ->
+        Map.put(offer, :paid_price, nil)
     end
   end
 
@@ -277,6 +290,15 @@ defmodule MisterWeb.ReportLive do
     do: "#{trunc(bid / value * 100)}%"
 
   def offer_advice_pct(_), do: "?"
+
+  # Línea de resultado económico de la operación: lo que pagamos vs la puja.
+  def purchase_line(%{paid_price: paid, bid: bid}, _) when is_integer(paid) and is_integer(bid) do
+    diff = bid - paid
+    sign = if(diff >= 0, do: "+", else: "−")
+    "lo compraste por #{money(paid)} · resultado de la venta: #{sign}#{money(abs(diff))}"
+  end
+
+  def purchase_line(_, _), do: nil
 
   # Recomendación de oferta recibida. Dos factores:
   #   * ganancia: puja vs valor de mercado actual
