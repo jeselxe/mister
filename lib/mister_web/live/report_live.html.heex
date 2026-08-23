@@ -106,11 +106,18 @@
                 id={"clause-#{target["player_id"]}"}
                 class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
               >
-                <div>
-                  <p class="font-bold text-slate-900">{target["name"]}</p>
-                  <p class="text-xs text-slate-500">
-                    ratio {pts(target["value_per_million"])} pts/M€ · ¡primero que llegue se lo lleva!
-                  </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <img
+                    src={player_photo_url(target["player_id"])}
+                    alt={target["name"]}
+                    class="h-10 w-10 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
+                  />
+                  <div>
+                    <p class="font-bold text-slate-900">{target["name"]}</p>
+                    <p class="text-xs text-slate-500">
+                      ratio {pts(target["value_per_million"])} pts/M€ · ¡primero que llegue se lo lleva!
+                    </p>
+                  </div>
                 </div>
                 <span class="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-sm font-black text-amber-800 ring-1 ring-amber-300">
                   ⚡ {money(target["clause_price"])}
@@ -252,9 +259,31 @@
                 id={"buy-#{rec["player_id"]}"}
                 class="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
               >
-                <div class="min-w-0">
+                <img
+                  src={player_photo_url(rec["player_id"])}
+                  alt={rec["name"]}
+                  class="h-9 w-9 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
+                />
+                <div class="min-w-0 flex-1">
                   <p class="flex items-center gap-1.5 font-bold text-slate-900">
                     {rec["name"]}
+                    <span
+                      class={[
+                        "rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ring-1",
+                        if(rec["source"] == "banca",
+                          do: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+                          else: "bg-slate-100 text-slate-600 ring-slate-200"
+                        )
+                      ]}
+                      title={
+                        if(rec["source"] == "banca",
+                          do: "Listado por la banca (sin propietario)",
+                          else: "Listado por otro usuario"
+                        )
+                      }
+                    >
+                      {rec["source"] || "mercado"}
+                    </span>
                     <.icon name={trend_icon(rec["trend"])} class="h-4 w-4" />
                   </p>
                   <p class="text-xs text-slate-500">
@@ -291,7 +320,14 @@
                 class="py-2.5 first:pt-0 last:pb-0"
               >
                 <div class="flex items-center justify-between gap-3">
-                  <p class="font-bold text-slate-900">{rec["name"]}</p>
+                  <div class="flex min-w-0 items-center gap-2">
+                    <img
+                      src={player_photo_url(rec["player_id"])}
+                      alt={rec["name"]}
+                      class="h-8 w-8 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
+                    />
+                    <p class="truncate font-bold text-slate-900">{rec["name"]}</p>
+                  </div>
                   <p class="text-xs text-slate-500">valor {money(rec["market_price"])}</p>
                 </div>
                 <% range = rec["sale_range"] || %{} %>
@@ -314,6 +350,92 @@
               id="sells-none"
             >
               Nadie en venta ahora mismo.
+            </p>
+          </section>
+
+          <%!-- Ofertas recibidas (banca y usuarios) --%>
+          <section
+            id="received-offers"
+            class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+                <.icon name="hero-inbox-arrow-down" class="h-5 w-5 text-orange-500" />
+                Ofertas recibidas
+              </h2>
+              <button
+                type="button"
+                phx-click="refresh_offers"
+                id="refresh-offers"
+                title="Recargar ofertas"
+                class="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 active:scale-90"
+              >
+                <.icon name="hero-arrow-path" class="h-4 w-4" />
+              </button>
+            </div>
+
+            <%= if @offers_error do %>
+              <p
+                class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200"
+                id="offers-error"
+              >
+                No se pudieron cargar las ofertas ({inspect(@offers_error)}).
+              </p>
+            <% end %>
+
+            <ul class="mt-3 space-y-3">
+              <li
+                :for={offer <- @offers}
+                id={"offer-#{offer.player_id}-#{offer.bid}"}
+                class="rounded-xl p-3 ring-1 transition hover:shadow-sm"
+              >
+                <div class="flex items-center gap-3">
+                  <img
+                    src={offer.photo_url || player_photo_url(offer.player_id)}
+                    alt={offer.name}
+                    class="h-11 w-11 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate font-bold text-slate-900">{offer.name}</p>
+                    <p class="text-xs text-slate-500">
+                      {offer.date} · puja de
+                      <span class={[
+                        "font-semibold",
+                        if(offer.bidder_kind == :bank,
+                          do: "text-emerald-700",
+                          else: "text-sky-700"
+                        )
+                      ]}>
+                        {if(offer.bidder_kind == :bank, do: "la banca", else: offer.bidder)}
+                      </span>
+                    </p>
+                  </div>
+                  <% advice = offer_advice(offer) %>
+                  <span class={offer_advice_classes(advice)} title={elem(advice, 1)}>
+                    {offer_advice_label(advice)}
+                  </span>
+                </div>
+                <div class="mt-2 grid grid-cols-3 gap-1.5 text-center text-xs">
+                  <span class="rounded-md bg-emerald-50 px-1.5 py-1 font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                    te ofrecen<br /><span class="font-black">{money(offer.bid)}</span>
+                  </span>
+                  <span class="rounded-md bg-slate-100 px-1.5 py-1 font-semibold text-slate-700 ring-1 ring-slate-200">
+                    valor mercado<br /><span class="font-black">{money(offer.value)}</span>
+                  </span>
+                  <span class="rounded-md bg-slate-50 px-1.5 py-1 font-semibold text-slate-500 ring-1 ring-slate-200">
+                    tu precio<br /><span class="font-black">{money(offer.asking_price)}</span>
+                  </span>
+                </div>
+                <p class="mt-1.5 text-[11px] text-slate-400">{elem(advice, 1)}</p>
+              </li>
+            </ul>
+
+            <p
+              :if={@offers == [] and @offers_error == nil}
+              class="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"
+              id="offers-none"
+            >
+              Sin ofertas pendientes.
             </p>
           </section>
         </div>

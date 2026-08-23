@@ -66,14 +66,12 @@ defmodule MisterWeb.Components.FormationPitch do
           >
             <div :for={player <- players} class="w-16 text-center sm:w-20">
               <div class="relative mx-auto">
-                <div class={[
-                  "flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-white shadow-md ring-2 transition-transform hover:scale-110 sm:h-12 sm:w-12",
-                  if(get_key(player, :is_captain),
-                    do: "bg-amber-500 ring-amber-200",
-                    else: "bg-slate-900/80 ring-white/40"
-                  )
-                ]}>
-                  {initials(get_key(player, :name))}
+                <div class="h-11 w-11 overflow-hidden rounded-full shadow-md ring-2 transition-transform hover:scale-110 sm:h-12 sm:w-12">
+                  <img
+                    src={photo_url(get_key(player, :player_id))}
+                    alt={get_key(player, :name)}
+                    class="h-full w-full bg-slate-200 object-cover"
+                  />
                 </div>
                 <span
                   :if={get_key(player, :is_captain)}
@@ -146,14 +144,17 @@ defmodule MisterWeb.Components.FormationPitch do
     |> Enum.reject(fn {row, _i} -> row == [] end)
   end
 
-  defp initials(nil), do: "?"
+  defp photo_url(player_id) when is_integer(player_id),
+    do: "https://cdn-mister.mundodeportivo.com/file/cdn-common/players/#{player_id}.png"
 
-  defp initials(name) do
-    name
-    |> String.split(~r{\s+}, trim: true)
-    |> Enum.take(2)
-    |> Enum.map_join("", &(String.first(&1) |> String.upcase()))
+  defp photo_url(player_id) when is_binary(player_id) do
+    case Integer.parse(player_id) do
+      {id, _} -> photo_url(id)
+      _ -> nil
+    end
   end
+
+  defp photo_url(_), do: nil
 
   defp last_name(name) when is_binary(name) do
     name |> String.split(~r{\s+}, trim: true) |> List.last() || name

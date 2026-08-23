@@ -24,6 +24,54 @@ defmodule Mister.Client do
 
   require Logger
 
+  @doc """
+  Ofertas recibidas por nuestros jugadores en venta (pujas de la banca y de
+  usuarios). Devuelve una lista plana normalizada, ordenada por puja desc.
+  """
+  def fetch_offers_received do
+    case fetch_json("/ajax/sw/offers-received", post: "offers-received") do
+      {:ok, %{"data" => %{"offers" => offers_map}}} when is_map(offers_map) ->
+        {:ok, normalize_offers(offers_map)}
+
+      {:ok, _} ->
+        {:ok, []}
+
+      error ->
+        error
+    end
+  end
+
+  defp normalize_offers(offers_map) do
+    offers_map
+    |> Map.values()
+    |> Enum.flat_map(fn
+      %{"offers" => list} when is_list(list) -> list
+      other -> [other]
+    end)
+    |> Enum.map(fn o ->
+      %{
+        player_id: o["id"],
+        name: o["name"],
+        position: o["position"],
+        bid: o["bid"],
+        value: o["value"],
+        asking_price: o["price"],
+        date: o["date"],
+        bidder: o["uname"],
+        bidder_kind: if(is_integer(o["id_user"]) and o["id_user"] > 0, do: :user, else: :bank),
+        photo_url: o["photoUrl"] || player_photo_url(o["id"]),
+        team_logo_url: o["teamLogoUrl"]
+      }
+    end)
+    |> Enum.sort_by(& &1.bid, :desc)
+  end
+
+  @cdn "https://cdn-mister.mundodeportivo.com/file/cdn-common"
+
+  @doc "Foto oficial del jugador a partir de su id."
+  def player_photo_url(player_id) when is_integer(player_id),
+    do: "#{@cdn}/players/#{player_id}.png"
+
   @doc "Listado de mercado: jugadores libres + rivales clausulables (HTML)."
   def fetch_market, do: fetch_html("/market")
 

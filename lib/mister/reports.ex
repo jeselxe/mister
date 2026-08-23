@@ -225,6 +225,8 @@ defmodule Mister.Reports do
         price: row.price,
         season_avg: row.season_avg,
         trend: to_string(row.trend || :flat),
+        # banca = sin propietario conocido; usuario = listado por un rival
+        source: if(row.owner_id in [nil, "0"], do: "banca", else: "usuario"),
         suggested_bid: suggested_bid(row.price, budget.bid_allowed_now)
       }
     end)
