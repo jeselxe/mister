@@ -436,6 +436,43 @@
                     <p class="mt-0.5 text-[11px] text-orange-700">
                       {elem(offer_advice(offer), 1)}
                     </p>
+                    <div class="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        phx-click="accept_offer"
+                        phx-value-id_bid={offer.id_bid}
+                        phx-value-amount={offer.bid}
+                        id={"accept-offer-#{offer.id_bid}"}
+                        disabled={offer_advice(offer) |> elem(0) != :accept}
+                        class={[
+                          "rounded-lg px-3 py-1.5 text-xs font-bold transition active:scale-95",
+                          if(elem(offer_advice(offer), 0) == :accept,
+                            do:
+                              "bg-emerald-600 text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-500",
+                            else: "cursor-not-allowed bg-slate-200 text-slate-400"
+                          )
+                        ]}
+                        title={
+                          if(elem(offer_advice(offer), 0) == :accept,
+                            do: "Aceptar la oferta en Mister",
+                            else:
+                              "El consejo actual es no aceptar; habilita solo si cambias de idea"
+                          )
+                        }
+                      >
+                        Aceptar oferta
+                      </button>
+                      <button
+                        type="button"
+                        phx-click="keep_on_sale"
+                        phx-value-id_market={offer.id_market}
+                        id={"resale-#{offer.id_market}"}
+                        class="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50 active:scale-95"
+                        title="Denegar la puja actual y seguir escuchando ofertas"
+                      >
+                        Mantener en venta
+                      </button>
+                    </div>
                   </div>
                 <% end %>
               </li>

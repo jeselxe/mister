@@ -59,6 +59,8 @@ defmodule Mister.Client do
         # dirección de tendencia según el valor actual vs el anterior
         trend_dir: trend_dir(o["value"], o["prev_value"]),
         asking_price: o["price"],
+        id_bid: o["id_bid"],
+        id_market: o["id_market"],
         date: o["date"],
         bidder: o["uname"],
         bidder_kind: if(is_integer(o["id_user"]) and o["id_user"] > 0, do: :user, else: :bank),
@@ -82,6 +84,45 @@ defmodule Mister.Client do
   @doc "Foto oficial del jugador a partir de su id."
   def player_photo_url(player_id) when is_integer(player_id),
     do: "#{@cdn}/players/#{player_id}.png"
+
+  @doc """
+  Acepta una oferta recibida por un jugador en venta
+  (`POST /ajax/offer` con `type=accept`).
+  """
+  def accept_offer(id_bid, amount) when is_integer(id_bid) and is_integer(amount) do
+    case request("/ajax/offer",
+           form: [id_bid: id_bid, type: "accept", amount: amount],
+           partial_request: false
+         ) do
+      {:ok, %Req.Response{status: 200}} ->
+        {:ok, :accepted}
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        Logger.error("Mister.Client: aceptar oferta respondi\u00f3 #{status}: #{inspect(body)}")
+        {:error, {:http_status, status}}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Deniega la oferta actual y mantiene el jugador en venta a la escucha de
+  nuevas ofertas (`POST /ajax/resale`).
+  """
+  def keep_on_sale(id_market) when is_integer(id_market) do
+    case request("/ajax/resale", form: [id_market: id_market], partial_request: false) do
+      {:ok, %Req.Response{status: 200}} ->
+        {:ok, :on_sale}
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        Logger.error("Mister.Client: resale respondi\u00f3 #{status}: #{inspect(body)}")
+        {:error, {:http_status, status}}
+
+      error ->
+        error
+    end
+  end
 
   @doc "Listado de mercado: jugadores libres + rivales clausulables (HTML)."
   def fetch_market, do: fetch_html("/market")
@@ -139,13 +180,17 @@ defmodule Mister.Client do
     with {:ok, cookie} <- auth_cookie() do
       base_url = Application.fetch_env!(:mister, :base_url)
 
+      # Las acciones (aceptar oferta, re-vender) se envían sin la cabecera
+      # `partial-request`, igual que hace el navegador.
+      partial =
+        if Keyword.get(opts, :partial_request, true), do: [{"partial-request", "true"}], else: []
+
       headers =
         [
           {"cookie", cookie},
           {"origin", base_url},
-          {"partial-request", "true"},
           {"x-requested-with", "XMLHttpRequest"}
-        ] ++ x_auth_header()
+        ] ++ partial ++ x_auth_header()
 
       req_opts = [
         url: base_url <> path,

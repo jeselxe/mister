@@ -81,6 +81,38 @@ defmodule MisterWeb.ReportLive do
     {:noreply, load_offers(socket)}
   end
 
+  # Acepta una oferta real en Mister (acción sobre la cuenta).
+  @impl true
+  def handle_event("accept_offer", %{"id_bid" => id_bid, "amount" => amount}, socket) do
+    case Mister.Client.accept_offer(String.to_integer(id_bid), String.to_integer(amount)) do
+      {:ok, :accepted} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Oferta aceptada ✅")
+         |> load_offers()}
+
+      {:error, reason} ->
+        Logger.error("ReportLive: no se pudo aceptar la oferta: #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "No se pudo aceptar la oferta")}
+    end
+  end
+
+  # Deniega la oferta y mantiene el jugador a la escucha de nuevas ofertas.
+  @impl true
+  def handle_event("keep_on_sale", %{"id_market" => id_market}, socket) do
+    case Mister.Client.keep_on_sale(String.to_integer(id_market)) do
+      {:ok, :on_sale} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Mantenido en venta: seguirá escuchando ofertas 🔁")
+         |> load_offers()}
+
+      {:error, reason} ->
+        Logger.error("ReportLive: no se pudo mantener en venta: #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "No se pudo mantener en venta")}
+    end
+  end
+
   # Lanza el análisis bajo demanda (útil en dev o para re-analizar tras
   # fichar/vender manualmente). En producción corre también el cron de las 7am.
   def handle_event("run_analysis", _params, socket) do
