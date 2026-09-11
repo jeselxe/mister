@@ -2,9 +2,10 @@ defmodule Mister.StandingsParser do
   @moduledoc """
   Parser de la clasificación (`POST /standings`).
 
-  De aquí sale el censo completo de la liga: id, slug, nombre, puntos y valor
-  de equipo de cada participante. Sirve para consultar rivales concretos vía
-  `/ajax/sw/users` si hace falta contexto adicional (v2).
+  De aquí sale el censo de la liga: id, slug, nombre, puntos y valor de cada
+  participante. Se usa para explorar las plantillas rivales vía
+  `/ajax/sw/users` (ver `Mister.Rivals`), que es donde están las cláusulas de
+  todos los jugadores de la liga.
   """
 
   alias Mister.ParseHelpers
@@ -25,57 +26,57 @@ defmodule Mister.StandingsParser do
     |> rows()
     |> Enum.map(&parse_row/1)
     |> Enum.reject(&is_nil/1)
+    |> Enum.uniq_by(& &1.user_id)
   end
 
   def parse(_), do: []
 
+  # Marcado actual: cada participante es un `a.user` con
+  # `href="users/<id>/<slug>"`. Se mantiene `[data-user-id]` como respaldo.
   defp rows(doc) do
-    doc
-    |> Floki.find("[data-user-id], .standing-row, .classification li, table tr")
-    |> Enum.filter(&(Floki.text(&1) != ""))
+    case Floki.find(doc, "a[href*='users/'], a[data-event='select_gameuser']") do
+      [] -> Floki.find(doc, "[data-user-id]")
+      nodes -> nodes
+    end
   end
 
   defp parse_row(node) do
-    user_id = user_id(node)
-    name = name(node)
-
-    if user_id && name do
+    with {:ok, user_id, slug} <- user_ref(node),
+         name when is_binary(name) <- name(node) do
       %{
         user_id: user_id,
-        slug: slug(node),
+        slug: slug,
         name: name,
         points: points(node),
         squad_value: squad_value(node)
       }
+    else
+      _ -> nil
     end
   end
 
-  defp user_id(node) do
-    case Floki.attribute(node, "data-user-id") do
-      [id | _] -> id
-      [] -> nil
+  defp user_ref(node) do
+    case Floki.attribute(node, "href") do
+      [href | _] ->
+        case Regex.run(~r{users/(\d+)/([^/?#]+)}, href) do
+          [_, id, slug] -> {:ok, id, slug}
+          _ -> :error
+        end
+
+      [] ->
+        case Floki.attribute(node, "data-user-id") do
+          [id | _] -> {:ok, id, nil}
+          [] -> :error
+        end
     end
   end
 
   defp name(node) do
     node
-    |> Floki.find(".user-name, .team-name, .name, a[href*='user'], td:nth-child(2)")
+    |> Floki.find(".info .name, .user-name, .team-name, .name, td:nth-child(2)")
     |> case do
       [el | _] -> el |> Floki.text() |> String.trim() |> non_empty()
       [] -> nil
-    end
-  end
-
-  defp slug(node) do
-    case Floki.attribute(node, "a", "href") do
-      [href | _] ->
-        case Regex.run(~r{/([^/?]+)$}, href) do
-          [_, slug] -> slug
-          _ -> nil
-        end
-
-      [] ->
-        nil
     end
   end
 
@@ -88,12 +89,20 @@ defmodule Mister.StandingsParser do
     end
   end
 
+  # `.played` viene como "18 jugadores · € 90.188.000": hay que quedarse con el
+  # importe tras el "€" (parse_money a secas tomaría el "18").
   defp squad_value(node) do
     node
-    |> Floki.find(".team-value, .value, [data-value]")
+    |> Floki.find(".played, .team-value, .value, [data-value]")
     |> case do
-      [el | _] -> ParseHelpers.parse_money(Floki.text(el))
-      [] -> nil
+      [el | _] ->
+        case Regex.run(~r/€\s*([\d.,]+)/, Floki.text(el)) do
+          [_, raw] -> ParseHelpers.parse_money(raw)
+          _ -> ParseHelpers.parse_money(Floki.text(el))
+        end
+
+      [] ->
+        nil
     end
   end
 

@@ -46,6 +46,11 @@ defmodule MisterWeb.ReportLiveTest do
 
       # clausulazos
       assert has_element?(view, "#clause-2001", "Kylian Mbappé")
+      assert has_element?(view, "#clause-2001", "de ElHu$tler")
+      assert has_element?(view, "#clause-2001", "21 pts")
+      assert has_element?(view, "#clause-2001", "DC")
+      assert has_element?(view, "#clause-2001", "valor 15.000.000 €")
+      assert has_element?(view, "#clause-2001", "+33% sobre valor")
       assert has_element?(view, "#clauses")
 
       # alineación visual
@@ -78,6 +83,30 @@ defmodule MisterWeb.ReportLiveTest do
 
       view |> element("#undo-action-#{action.id}") |> render_click()
       assert Repo.reload!(action).status == "pending"
+    end
+
+    test "separa pujas de seguimientos y muestra la revalorización", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # puja recomendada con importe
+      assert has_element?(view, "#buy-3001", "pujar hasta")
+      assert has_element?(view, "#buy-3001", "12.5%")
+      assert has_element?(view, "#buy-3001", "30 pts totales")
+
+      # seguimiento sin puja
+      assert has_element?(view, "#watch-3002", "sin puja")
+    end
+
+    test "un titular en venta se marca como no vender", %{conn: conn, report: report} do
+      {:ok, view, _html} = live(conn, "/")
+
+      assert has_element?(view, "#sale-4002", "No vender")
+      assert has_element?(view, "#sale-4002", "titular")
+      assert has_element?(view, "#alerts", "titulares en tu mejor once")
+
+      unsell = Enum.find(report.actions, &(&1.kind == "unsell"))
+      assert unsell
+      assert has_element?(view, "#action-#{unsell.id}", "Retirar de la venta")
     end
 
     test "se actualiza solo cuando llega un nuevo informe por PubSub", %{
@@ -113,25 +142,84 @@ defmodule MisterWeb.ReportLiveTest do
         %{
           player_id: 3001,
           name: "Nico Williams",
+          position: 4,
           price: 8_000_000,
           season_avg: 7.2,
+          total_points: 30,
+          pts_per_million: 0.9,
           trend: "up",
+          growth_1d: 0.5,
+          growth_7d: 12.5,
+          growth_30d: 40.0,
+          projected_value: 9_200_000,
+          expected_resale: 9_200_000,
+          potential_gain: 1_200_000,
+          potential_gain_pct: 15.0,
+          recommendation: "bid",
+          source: "banca",
+          seller_name: nil,
           suggested_bid: 8_400_000
+        },
+        %{
+          player_id: 3002,
+          name: "Aitor Ruibal",
+          position: 2,
+          price: 2_000_000,
+          season_avg: 3.0,
+          total_points: 12,
+          pts_per_million: 1.5,
+          trend: "up",
+          growth_1d: 0.2,
+          growth_7d: 1.0,
+          growth_30d: 2.0,
+          projected_value: 2_020_000,
+          expected_resale: 2_020_000,
+          potential_gain: 20_000,
+          potential_gain_pct: 1.0,
+          recommendation: "watch",
+          source: "usuario",
+          seller_name: "Fran",
+          suggested_bid: nil
         }
       ],
       sell_recommendations: [
         %{
           player_id: 4001,
           name: "Iago Aspas",
+          position: 4,
+          trend: "down",
+          growth_7d: -3.1,
+          projected_value: 2_900_000,
           market_price: 3_000_000,
+          in_best_lineup: false,
+          verdict: "sell",
           sale_range: %{pessimistic: 2_850_000, expected: 3_000_000, optimistic: 3_150_000}
+        },
+        %{
+          player_id: 4002,
+          name: "Koke",
+          position: 3,
+          trend: "down",
+          growth_7d: -3.3,
+          projected_value: 8_300_000,
+          market_price: 8_600_000,
+          in_best_lineup: true,
+          verdict: "keep",
+          sale_range: %{pessimistic: 8_170_000, expected: 8_600_000, optimistic: 9_030_000}
         }
       ],
       clause_targets: [
         %{
           player_id: 2001,
           name: "Kylian Mbappé",
+          owner_id: 14_660_410,
+          owner_name: "ElHu$tler",
+          position: 4,
           clause_price: 20_000_000,
+          player_value: 15_000_000,
+          clause_premium_pct: 33,
+          season_avg: 8.5,
+          total_points: 21,
           value_per_million: 0.9,
           score: 62.5,
           urgency: :high
@@ -220,7 +308,8 @@ defmodule MisterWeb.ReportLiveTest do
       },
       alerts: [
         "🚨 PRESUPUESTO EN ROJO: si sigues en negativo cuando arranca la jornada, NO PUNTÚAS. Vende o ajusta ya.",
-        "⚡ 1 clausulazo(s) pagables detectados: son compra inmediata, primero que llega se lo lleva."
+        "⚡ 1 clausulazo(s) pagables detectados: son compra inmediata, primero que llega se lo lleva.",
+        "🔄 En venta pero titulares en tu mejor once: Koke. Retíralos del mercado o perderás sus puntos."
       ]
     }
 

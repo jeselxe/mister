@@ -10,11 +10,12 @@
 
 ## 🟡 Media prioridad
 
-- [ ] **Pedir detalle (`/ajax/sw/players`) de TODA la plantilla titularizable** en el job diario, no solo de los candidatos "calientes", para que el filtro de lesión/sanción cubra a los 15-18 jugadores propios. Coste: ~1 petición por jugador al día (aceptable).
 - [ ] **Confirmar el valor exacto de `status` para sancionados** en el JSON de detalle (solo confirmado `"injury"`). El filtro usa lista blanca, así que mientras tanto los sancionados podrían colarse en el once si nunca se pide su detalle.
 - [ ] **Fotos reales de jugadores en el campo** (`FormationPitch`): extraer URL del avatar desde el HTML de `/team` o del JSON de detalle, guardarla en `players.avatar_url` (nueva columna + migración) y usar `<img>` en vez de iniciales.
 - [ ] **Calibrar la fórmula de score de clausulazos** (`ClauseDetector.score/1`) con datos reales de temporada; hoy es un punto de partida (`avg * 10 - clause/M€`).
-- [ ] **Calibrar el umbral de candidatos interesantes** (`interesting?/1` del job): ratio > 1.5 pts/M€ es arbitrario.
+- [ ] **Calibrar el filtro de clausulazos**: `value_per_million >= 1.0` y tope de 12 (`@min_value_per_million` / `@max_targets`) ahora que se recorren todas las plantillas rivales.
+- [ ] **Calibrar los umbrales de puja** (`Mister.Valuation`): `@bid_gain_pct` (8% de reventa proyectada) y `@bid_pts_per_million` (2.0) son heurísticos; ajustar con resultados reales de la temporada.
+- [ ] **Calibrar el horizonte de proyección** (`@horizon_days`, hoy 7 días) y el tope de ±5%/día según cómo se comporte el mercado.
 
 ## 🟢 Baja prioridad / v2
 
@@ -22,7 +23,7 @@
   - presupuesto en rojo,
   - clausulazos pagables nuevos,
   - informe diario generado.
-- [ ] **Exploración de plantillas rivales** vía `/ajax/sw/users`: contexto de rivales con presupuesto ajustado (más propensos a vender barato). No necesario para clausulazos (los datos vienen en `/market`).
+- [ ] **Contexto de rivales vía `/ajax/sw/users`**: ya se usa para clausulazos (`Mister.Rivals`); pendiente cruzar el presupuesto/plantilla de cada rival (más propensos a vender barato) en el informe.
 - [ ] **Histórico y evolución**: vista/gráfica con los snapshots diarios de precio (`price_snapshots`) para cruzar decisiones tomadas vs. evolución real.
 - [ ] **Despliegue**: Dockerfile + Caddy (mismo patrón que otros proyectos) y secrets en variables de entorno (`MISTER_REFRESH_TOKEN`, credenciales BD).
 
@@ -33,4 +34,8 @@
 - [x] Job diario Oban (cron 7:00 Europe/Madrid) + ejecución manual desde la web
 - [x] Migración de Oban (v14) + fix de tipos del informe (`{:array, :map}`)
 - [x] Vista LiveView del informe (`ReportLive`) + campo visual (`FormationPitch`)
-- [x] Tests de la vista (10) y `mix precommit` limpio
+- [x] Detalle (`/ajax/sw/players`) de todo el mercado y de toda la plantilla: el filtro de lesión/sanción cubre a los 15-18 titulares y los clausulazos ya cargan sus datos
+- [x] Pujas separadas de seguimientos, con crecimiento y reventa proyectada (`Mister.Valuation`)
+- [x] Cruce ventas ↔ mejor once: un titular en venta pasa a "retirar de la venta" (acción `unsell` + alerta)
+- [x] Clausulazos de **todas las plantillas rivales** vía `/standings` + `/ajax/sw/users` (`data.team_now`), no solo de `/market`; con filtro de rendimiento y tope
+- [x] Tests de la vista (12), tests unitarios de `Valuation`, `ClauseDetector`, `Reports`, `StandingsParser` y `Rivals`, y `mix precommit` limpio

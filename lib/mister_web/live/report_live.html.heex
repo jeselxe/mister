@@ -113,9 +113,31 @@
                     class="h-10 w-10 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
                   />
                   <div>
-                    <p class="font-bold text-slate-900">{target["name"]}</p>
+                    <p class="flex flex-wrap items-center gap-1.5 font-bold text-slate-900">
+                      <span
+                        :if={pos_label(target["position"])}
+                        class={pos_classes(pos_label(target["position"]))}
+                      >
+                        {pos_label(target["position"])}
+                      </span>
+                      {target["name"]}
+                    </p>
                     <p class="text-xs text-slate-500">
-                      ratio {pts(target["value_per_million"])} pts/M€ · ¡primero que llegue se lo lleva!
+                      {if(target["owner_name"],
+                        do: "de " <> target["owner_name"] <> " · ",
+                        else: ""
+                      )}{pts(target["total_points"])} pts · media {pts(target["season_avg"])} · ratio {pts(
+                        target["value_per_million"]
+                      )} pts/M€
+                    </p>
+                    <p :if={target["player_value"]} class="text-[11px] text-slate-500">
+                      valor {money(target["player_value"])}
+                      <span
+                        :if={target["clause_premium_pct"]}
+                        class={premium_classes(target["clause_premium_pct"])}
+                      >
+                        · +{target["clause_premium_pct"]}% sobre valor
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -244,18 +266,28 @@
             </div>
           </section>
 
-          <%!-- Fichajes recomendados --%>
+          <%!-- Fichajes: pujas con importe + seguimientos sin puja --%>
+          <% buys = List.wrap(@report.buy_recommendations) %>
+          <% bid_buys = Enum.filter(buys, &bid?/1) %>
+          <% watched_buys = Enum.reject(buys, &bid?/1) %>
           <section
             id="buy-recommendations"
             class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
           >
             <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
-              <.icon name="hero-shopping-bag" class="h-5 w-5 text-sky-600" />
-              Fichajes recomendados
+              <.icon name="hero-shopping-bag" class="h-5 w-5 text-sky-600" /> Fichajes &amp; pujas
             </h2>
-            <ul class="mt-3 divide-y divide-slate-100">
+            <p class="mt-1 text-xs text-slate-500">
+              Solo se propone puja si la revalorización proyectada la justifica. El resto son seguimientos, sin importe.
+            </p>
+
+            <%!-- Pujar ahora --%>
+            <p class="mt-3 text-xs font-black uppercase tracking-wide text-sky-600">
+              Pujar ahora
+            </p>
+            <ul class="mt-1 divide-y divide-slate-100">
               <li
-                :for={rec <- List.wrap(@report.buy_recommendations)}
+                :for={rec <- bid_buys}
                 id={"buy-#{rec["player_id"]}"}
                 class="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
               >
@@ -299,16 +331,34 @@
                     </span>
                   </p>
                   <p class="text-xs text-slate-500">
-                    media {pts(rec["season_avg"])} · precio {money(rec["price"])}{if rec[
-                                                                                       "seller_name"
-                                                                                     ],
-                                                                                     do:
-                                                                                       " · de " <>
-                                                                                         rec[
-                                                                                           "seller_name"
-                                                                                         ],
-                                                                                     else: ""}
+                    {pts(rec["total_points"])} pts totales · media {pts(rec["season_avg"])} · precio {money(
+                      rec["price"]
+                    )}{if rec[
+                            "seller_name"
+                          ],
+                          do:
+                            " · de " <>
+                              rec[
+                                "seller_name"
+                              ],
+                          else: ""}
                   </p>
+                  <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                    <span class={growth_classes(rec["growth_7d"])}>
+                      <.icon name="hero-arrow-trending-up" class="inline h-3 w-3" />
+                      {signed_pct(rec["growth_7d"]) || "sin datos"} 7d
+                    </span>
+                    <span class="text-slate-400">·</span>
+                    <span class="text-slate-500">
+                      proyección {money(rec["expected_resale"])}
+                    </span>
+                    <span class="text-slate-400">·</span>
+                    <span class={growth_classes(rec["potential_gain_pct"])}>
+                      reventa {signed_money(rec["potential_gain"])} ({signed_pct(
+                        rec["potential_gain_pct"]
+                      )})
+                    </span>
+                  </div>
                 </div>
                 <span class="shrink-0 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 ring-1 ring-sky-200">
                   pujar hasta {money(rec["suggested_bid"])}
@@ -316,12 +366,54 @@
               </li>
             </ul>
             <p
-              :if={@report.buy_recommendations in [nil, []]}
-              class="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"
+              :if={bid_buys == []}
+              class="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"
               id="buys-none"
             >
-              Sin fichajes recomendados hoy.
+              Hoy ninguna puja clara: la proyección de reventa no compensa el riesgo.
             </p>
+
+            <%!-- Seguir: en alza pero sin puja recomendada --%>
+            <div :if={watched_buys != []} class="mt-4 border-t border-slate-100 pt-3">
+              <p class="text-xs font-black uppercase tracking-wide text-slate-400">
+                Seguir (sin puja)
+              </p>
+              <ul class="mt-1 divide-y divide-slate-100">
+                <li
+                  :for={rec <- watched_buys}
+                  id={"watch-#{rec["player_id"]}"}
+                  class="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
+                >
+                  <img
+                    src={player_photo_url(rec["player_id"])}
+                    alt={rec["name"]}
+                    class="h-8 w-8 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <p class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800">
+                      <span
+                        :if={pos_label(rec["position"])}
+                        class={pos_classes(pos_label(rec["position"]))}
+                      >
+                        {pos_label(rec["position"])}
+                      </span>
+                      {rec["name"]}
+                      <span class={growth_classes(rec["growth_7d"])}>
+                        {signed_pct(rec["growth_7d"]) || "sin datos"} 7d
+                      </span>
+                    </p>
+                    <p class="text-[11px] text-slate-500">
+                      {pts(rec["total_points"])} pts · {money(rec["price"])} · proyección {money(
+                        rec["expected_resale"]
+                      )} · reventa {signed_money(rec["potential_gain"])}
+                    </p>
+                  </div>
+                  <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    sin puja
+                  </span>
+                </li>
+              </ul>
+            </div>
           </section>
 
           <%!-- En venta & ofertas recibidas (unificado) --%>
@@ -361,6 +453,7 @@
               >
                 <% rec = entry.rec %>
                 <% offer = entry.offer %>
+                <% advice = sale_advice(rec, offer) %>
                 <div class="flex items-center gap-3">
                   <img
                     src={player_photo_url(rec["player_id"])}
@@ -383,13 +476,21 @@
                         <.icon name={trend_icon(rec["trend"])} class="h-3.5 w-3.5" />
                         {trend_label(rec["trend"])}
                       </span>
+                      <span
+                        :if={rec["in_best_lineup"]}
+                        class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-indigo-700 ring-1 ring-indigo-300"
+                      >
+                        titular
+                      </span>
                     </p>
                     <p class="text-xs text-slate-500">
                       valor de mercado {money(rec["market_price"])}
+                      <span class={growth_classes(rec["growth_7d"])}>
+                        · {signed_pct(rec["growth_7d"]) || "sin datos"} 7d
+                      </span>
                     </p>
                   </div>
                   <%= if offer do %>
-                    <% advice = offer_advice(offer) %>
                     <span class={offer_advice_classes(advice)} title={elem(advice, 1)}>
                       {offer_advice_label(advice)}
                     </span>
@@ -400,8 +501,19 @@
                   <% end %>
                 </div>
 
+                <p
+                  :if={rec["in_best_lineup"]}
+                  class="mt-2 flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-200"
+                >
+                  <.icon name="hero-shield-check" class="h-4 w-4 shrink-0" />
+                  No vender: es titular en tu mejor once. Retíralo de la venta.
+                </p>
+
                 <% range = rec["sale_range"] || %{} %>
-                <div class="mt-2 grid grid-cols-3 gap-1.5 text-center text-xs">
+                <div
+                  :if={!rec["in_best_lineup"]}
+                  class="mt-2 grid grid-cols-3 gap-1.5 text-center text-xs"
+                >
                   <span class="rounded-md bg-red-50 px-1.5 py-1 font-semibold text-red-700 ring-1 ring-red-100">
                     pesimista<br /><span class="font-black">{money(range["pessimistic"])}</span>
                   </span>
@@ -434,7 +546,7 @@
                       {purchase_line(offer, nil)}
                     </p>
                     <p class="mt-0.5 text-[11px] text-orange-700">
-                      {elem(offer_advice(offer), 1)}
+                      {elem(advice, 1)}
                     </p>
                     <div class="mt-2 flex gap-2">
                       <button
@@ -443,20 +555,24 @@
                         phx-value-id_bid={offer.id_bid}
                         phx-value-amount={offer.bid}
                         id={"accept-offer-#{offer.id_bid}"}
-                        disabled={offer_advice(offer) |> elem(0) != :accept}
+                        disabled={rec["in_best_lineup"] || elem(advice, 0) != :accept}
                         class={[
                           "rounded-lg px-3 py-1.5 text-xs font-bold transition active:scale-95",
-                          if(elem(offer_advice(offer), 0) == :accept,
+                          if(!rec["in_best_lineup"] && elem(advice, 0) == :accept,
                             do:
                               "bg-emerald-600 text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-500",
                             else: "cursor-not-allowed bg-slate-200 text-slate-400"
                           )
                         ]}
                         title={
-                          if(elem(offer_advice(offer), 0) == :accept,
-                            do: "Aceptar la oferta en Mister",
+                          if(rec["in_best_lineup"],
+                            do: "Es titular en tu mejor once: retíralo de la venta",
                             else:
-                              "El consejo actual es no aceptar; habilita solo si cambias de idea"
+                              if(elem(advice, 0) == :accept,
+                                do: "Aceptar la oferta en Mister",
+                                else:
+                                  "El consejo actual es no aceptar; habilita solo si cambias de idea"
+                              )
                           )
                         }
                       >

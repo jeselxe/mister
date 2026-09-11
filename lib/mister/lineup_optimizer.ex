@@ -123,15 +123,15 @@ defmodule Mister.LineupOptimizer do
   defp expected_points_for(%PlayerRow{season_avg: avg}, nil), do: avg || 0.0
 
   defp expected_points_for(_p, detail) do
-    player = detail["player"] || detail
-
+    # El detalle trae en `points` la lista de jornadas (cada una con
+    # `points.points`); `player.points` es un total escalar y no sirve aquí.
     recent =
-      (player["points"] || [])
+      (detail["points"] || [])
       |> Enum.filter(&(get_in(&1, ["points", "points"]) != nil))
       |> Enum.take(-5)
 
     if recent == [] do
-      player["avg"] || 0.0
+      get_in(detail, ["player", "avg"]) || 0.0
     else
       recent
       |> Enum.map(&get_in(&1, ["points", "points"]))

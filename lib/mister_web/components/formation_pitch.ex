@@ -64,7 +64,7 @@ defmodule MisterWeb.Components.FormationPitch do
             :for={{players, row_index} <- row_items(@rows)}
             class="flex justify-center gap-2 sm:gap-3"
           >
-            <div :for={player <- players} class="w-16 text-center sm:w-20">
+            <div :for={player <- players} class="w-16 text-center flex flex-col sm:w-20">
               <div class="relative mx-auto">
                 <div class="h-11 w-11 overflow-hidden rounded-full shadow-md ring-2 transition-transform hover:scale-110 sm:h-12 sm:w-12">
                   <img
@@ -149,7 +149,10 @@ defmodule MisterWeb.Components.FormationPitch do
   defp photo_url(_), do: nil
 
   defp last_name(name) when is_binary(name) do
-    name |> String.split(~r{\s+}, trim: true) |> List.last() || name
+    name
+    |> String.split(~r{\s+}, trim: true)
+    |> Enum.filter(&(&1 != "💥"))
+    |> List.last() || name
   end
 
   defp last_name(other), do: to_string(other)

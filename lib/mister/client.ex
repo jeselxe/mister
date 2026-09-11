@@ -136,15 +136,30 @@ defmodule Mister.Client do
   @doc """
   Detalle completo de un jugador (JSON): precio, cláusula, `values_chart`,
   puntos por jornada, estado físico (`status`/`injury`), próximo rival.
+
+  Devuelve el mapa interno de `data` (no el sobre `%{"data" => ..., "status" => ...}`)
+  porque todos los consumidores (detector de clausulazos, optimizador de
+  alineación, valoración) esperan `player`/`points`/`values` en la raíz.
   """
   def player_detail(player_id, slug \\ "") do
-    fetch_json("/ajax/sw/players", post: "players", id: player_id, slug: slug, comments: 0)
+    "/ajax/sw/players"
+    |> fetch_json(post: "players", id: player_id, slug: slug, comments: 0)
+    |> unwrap_data()
   end
 
-  @doc "Detalle de un usuario/rival concreto (JSON)."
+  @doc "Detalle de un usuario/rival concreto (JSON), sin el sobre `data`."
   def user_detail(user_id, slug \\ "") do
-    fetch_json("/ajax/sw/users", post: "users", id: user_id, slug: slug, comments: 0)
+    "/ajax/sw/users"
+    |> fetch_json(post: "users", id: user_id, slug: slug, comments: 0)
+    |> unwrap_data()
   end
+
+  # El endpoint responde `%{"data" => %{...}, "status" => "ok"}`. Si la
+  # sesión caduca devuelve `%{"popup" => false, "status" => "error"}`: en ese
+  # caso propagamos `:error` para que el job no lo trate como un detalle válido.
+  defp unwrap_data({:ok, %{"data" => data}}) when is_map(data), do: {:ok, data}
+  defp unwrap_data({:ok, %{"status" => "error"}}), do: {:error, :player_detail_unavailable}
+  defp unwrap_data(other), do: other
 
   ## Internals
 

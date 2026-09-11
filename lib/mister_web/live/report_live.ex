@@ -146,8 +146,7 @@ defmodule MisterWeb.ReportLive do
   # poder mostrar el balance real de la operación.
   defp enrich_with_purchase_price(offer) do
     case Mister.Client.player_detail(offer.player_id) do
-      {:ok, %{"data" => %{"player" => %{"transfer" => %{"price" => paid}}}}}
-      when is_integer(paid) ->
+      {:ok, %{"player" => %{"transfer" => %{"price" => paid}}}} when is_integer(paid) ->
         Map.put(offer, :paid_price, paid)
 
       _ ->
@@ -268,14 +267,51 @@ defmodule MisterWeb.ReportLive do
   def kind_icon("clause"), do: "hero-bolt"
   def kind_icon("buy"), do: "hero-shopping-bag"
   def kind_icon("sell"), do: "hero-banknotes"
+  def kind_icon("unsell"), do: "hero-arrow-uturn-left"
   def kind_icon("lineup_change"), do: "hero-arrows-right-left"
   def kind_icon(_), do: "hero-check-circle"
 
   def kind_label("clause"), do: "Clausulazo"
-  def kind_label("buy"), do: "Fichaje"
-  def kind_label("sell"), do: "Venta"
+  def kind_label("buy"), do: "Pujar"
+  def kind_label("sell"), do: "Vender"
+  def kind_label("unsell"), do: "Retirar de la venta"
   def kind_label("lineup_change"), do: "Alineación"
   def kind_label(_), do: "Tarea"
+
+  @doc "¿La recomendación de fichaje conlleva una puja con importe?"
+  def bid?(%{"recommendation" => "bid"}), do: true
+  def bid?(_), do: false
+
+  @doc "Porcentaje con signo, p. ej. `+6,3%` / `-2,1%`."
+  def signed_pct(nil), do: nil
+
+  def signed_pct(n) when is_number(n) do
+    sign = if(n >= 0, do: "+", else: "")
+    sign <> :erlang.float_to_binary(n * 1.0, decimals: 1) <> "%"
+  end
+
+  def signed_pct(other), do: to_string(other)
+
+  def growth_classes(nil), do: "text-slate-400"
+  def growth_classes(n) when is_number(n) and n > 0, do: "text-emerald-600"
+  def growth_classes(n) when is_number(n) and n < 0, do: "text-red-600"
+  def growth_classes(_), do: "text-slate-500"
+
+  @doc "Color de la prima de la cláusula sobre el valor (verde barato → rojo caro)."
+  def premium_classes(pct) when is_number(pct) and pct <= 55, do: "font-bold text-emerald-600"
+  def premium_classes(pct) when is_number(pct) and pct <= 110, do: "font-bold text-amber-600"
+  def premium_classes(_), do: "font-bold text-red-600"
+
+  @doc "Importe con signo para ganancias/pérdidas proyectadas."
+  def signed_money(nil), do: "?"
+
+  def signed_money(n) when is_integer(n) do
+    sign = if(n >= 0, do: "+", else: "−")
+    sign <> money(abs(n))
+  end
+
+  def signed_money(n) when is_float(n), do: signed_money(trunc(n))
+  def signed_money(other), do: to_string(other)
 
   def red_alert?(alert), do: String.contains?(alert, "PRESUPUESTO EN ROJO")
 
@@ -317,6 +353,14 @@ defmodule MisterWeb.ReportLive do
       "sale_range" => nil
     }
   end
+
+  # Consejo de una oferta recibida. Si el jugador es titular en el mejor once,
+  # la respuesta es siempre no vender: cruzamos venta con alineación.
+  def sale_advice(%{"in_best_lineup" => true}, _offer),
+    do: {:deny, "es titular en tu mejor once: retíralo de la venta, no lo vendas"}
+
+  def sale_advice(_rec, nil), do: nil
+  def sale_advice(_rec, offer), do: offer_advice(offer)
 
   def offer_advice_pct(%{bid: bid, value: value}) when is_integer(value) and value > 0,
     do: "#{trunc(bid / value * 100)}%"

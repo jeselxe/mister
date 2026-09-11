@@ -201,7 +201,37 @@ end
 
 ## 9. Detector de clausulazos
 
-Los datos de cláusula de jugadores rivales ya vienen en el HTML de `/market` (sección de rivales clausulables) y en el JSON de `/ajax/sw/players`, así que no hace falta explorar plantillas rivales completas para esto.
+El precio de cláusula **no** viene en el HTML de `/market`: solo se obtiene del
+JSON. Hay dos vías:
+
+* `/ajax/sw/players` (`data.player.clause.value`) — una petición por jugador.
+* `/ajax/sw/users` (`data.team_now`) — **una petición por rival** devuelve su
+  plantilla completa con la cláusula de cada jugador. Es la vía que usa
+  `Mister.Rivals` para recorrer la liga a partir de `/standings`.
+
+Ejecutar un clausulazo no requiere que el jugador esté en venta, así que
+limitarse a `/market` dejaba fuera a casi toda la liga. El job recorre las
+plantillas rivales (excluyendo los jugadores propios por `player_id`) **además**
+del mercado, y pide el detalle de **toda** la plantilla propia para el filtro de
+lesiones y los puntos esperados.
+
+`Mister.Client.player_detail/2` y `user_detail/2` devuelven el mapa interno de
+`data` (no el sobre `%{"data" => ..., "status" => "ok"}`); todos los
+consumidores (detector, optimizador, valoración) esperan `player`/`points`/
+`values` en la raíz. Si la sesión caduca el endpoint responde `%{"status" =>
+"error"}` y el cliente lo propaga como `{:error, ...}`.
+
+Dos cruces importantes en el job:
+
+* los clausulazos se pagan con **saldo real** (`budget.real_now`), nunca con el
+  saldo proyectado tras ventas ni con el bonus de puja;
+* el mercado incluye nuestros propios jugadores en venta, así que se excluyen
+  por `player_id` antes de buscar clausulazos o fichajes.
+
+Recorrer todas las plantillas deja cientos de cláusulas pagables, así que
+`ClauseDetector` aplica un mínimo de rendimiento (`value_per_million >= 1.0`)
+y limita a las 12 mejores por score. Ambos umbrales son configurables
+(`:min_value_per_million`, `:max_targets`) y quedan pendientes de calibrar.
 
 ```elixir
 defmodule Mister.ClauseDetector do
@@ -243,7 +273,9 @@ Formaciones soportadas: 3-4-3, 3-5-2, 4-3-3, 4-4-2, 4-5-1, 5-3-2, 5-4-1.
 
 **Exclusión por lesión/sanción:** en el JSON de `/ajax/sw/players`, el campo `status` vale `"injury"` para lesionados, con detalle en `injury: {category, description, duration}`. No se ha confirmado aún el valor exacto para sanciones, así que el filtro usa **lista blanca** (`nil`, `""`, `"ok"` = disponible; cualquier otro valor = no disponible) en vez de una lista cerrada de estados "malos" — más seguro ante estados nuevos no vistos todavía.
 
-**Limitación conocida:** el filtro de disponibilidad solo puede aplicarse a jugadores de los que ya se tiene el detalle cargado (`/ajax/sw/players`). Actualmente solo se pide detalle de candidatos "calientes" (mercado con tendencia, `hot_clause?`), no de toda la plantilla — **pendiente de decidir** si el job diario debe pedir detalle de los 11-15 titularizables siempre, para que el filtro de bajas cubra a toda la plantilla.
+**Puntos esperados:** el detalle trae en `data.points` la lista de jornadas (cada una con `points.points`); `data.player.points` es un total escalar y **no** sirve para calcular la media reciente. Sin detalle se usa `season_avg` de la fila.
+
+**Cobertura:** el job diario pide el detalle de los ~17 jugadores de la plantilla (y de todo el mercado), así que el filtro de disponibilidad cubre a todos los titularizables, no solo a los candidatos calientes.
 
 ```elixir
 defmodule Mister.LineupOptimizer do
@@ -405,8 +437,19 @@ Programado vía `Oban.Plugins.Cron` (`"0 7 * * *"` — 7am cada día).
 ## 12. Vista web (Phoenix LiveView) — IMPLEMENTADA
 
 Módulos:
-- `MisterWeb.ReportLive` (montado en `/`): aviso de presupuesto en rojo, tarjetas de presupuesto (saldo real / proyectado / puja máx actual / proyectada), clausulazos pagables, fichajes recomendados, ventas con rango pesimista/esperado/optimista, checklist marcable (`complete/dismiss/undo_action`) y botón "Ejecutar análisis ahora" que encola el job Oban bajo demanda.
+- `MisterWeb.ReportLive` (montado en `/`): aviso de presupuesto en rojo, tarjetas de presupuesto (saldo real / proyectado / puja máx actual / proyectada), clausulazos pagables, fichajes separados en **pujas con importe** y **seguimientos sin puja** (con crecimiento a 7 días y reventa proyectada), ventas con rango pesimista/esperado/optimista, checklist marcable (`complete/dismiss/undo_action`) y botón "Ejecutar análisis ahora" que encola el job Oban bajo demanda.
 - `MisterWeb.Components.FormationPitch`: campo visual con CSS (césped rayado, filas por línea FWD→GK derivadas de la formación), avatar circular por jugador con puntos esperados y badge dorado "C" del capitán.
+
+### Valoración, pujas y cruce de datos
+
+`Mister.Valuation` calcula, del detalle diario (`data.values`), el crecimiento a 1 día / 1 semana / 1 mes, proyecta el valor a 7 días (ritmo semanal, con tope de ±5%/día) y estima el rango de reventa vía banca (95%–105%). De ahí sale la decisión:
+
+* **`:bid`** — revalorización proyectada ≥ 8% sobre el precio de compra, o ratio ≥ 2.0 pts/M€ sin pérdida proyectada. Solo estos reciben `suggested_bid`.
+* **`:watch`** — el resto (en alza sin recorrido suficiente, o en caída): se muestran con crecimiento y proyección, pero sin importe.
+
+Las ventas se cruzan con `best_lineup`: un jugador **en venta que es titular** en el mejor once deja de ser "vender" (`verdict: "keep"`), genera una acción `unsell` ("retirar de la venta"), dispara una alerta y fuerza el consejo de cualquier oferta recibida a *rechazar*.
+
+`Reports.persist!/1` recarga el informe desde Postgres antes de devolverlo para que las columnas JSONB lleguen siempre con claves string (igual que `latest/0`): la vista y los mensajes de `PubSub` leen el informe serializado de forma consistente.
 
 Detalles de implementación:
 - Los campos `:map`/array se serializan a JSON al persistir: la vista accede a las claves de forma tolerante (átomo o string).
@@ -417,7 +460,7 @@ Detalles de implementación:
 ## 13. Pendientes / decisiones abiertas
 
 1. **Capturar el endpoint real de refresh de token** — sin esto, la renovación de sesión sigue siendo manual.
-2. **Decidir si el job diario pide detalle (`/ajax/sw/players`) de toda la plantilla titularizable siempre**, para que el filtro de lesión/sanción cubra a todos los jugadores propios (no solo los "calientes"). Coste: más peticiones por ejecución diaria.
-3. **Confirmar el valor exacto de `status` para jugadores sancionados** en el JSON de `/ajax/sw/players` (solo se ha confirmado `"injury"` hasta ahora).
+2. **Confirmar el valor exacto de `status` para jugadores sancionados** en el JSON de `/ajax/sw/players` (solo se ha confirmado `"injury"` hasta ahora).
+3. **Calibrar los umbrales de `Mister.Valuation`** (`@bid_gain_pct`, `@bid_pts_per_million`, `@horizon_days`) con resultados reales de la temporada.
 4. **Notificación del informe** — se ha hablado de Telegram/email como complemento a la vista LiveView, sin implementar todavía.
-5. **Exploración de plantillas rivales vía `/ajax/sw/users`** — dejado como v2, ya que la detección de clausulazos no lo necesita (esos datos ya están en `/market`); serviría para contexto adicional (rivales con presupuesto ajustado, más propensos a vender barato).
+5. **Exploración de plantillas rivales vía `/ajax/sw/users`** — dejado como v2; serviría para contexto adicional (rivales con presupuesto ajustado, más propensos a vender barato).
