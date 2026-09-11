@@ -350,11 +350,13 @@
                     </span>
                     <span class="text-slate-400">·</span>
                     <span class="text-slate-500">
-                      proyección {money(rec["expected_resale"])}
+                      reventa 7d {money(resale_edge(rec, "pessimistic"))}–{money(
+                        resale_edge(rec, "optimistic")
+                      )}
                     </span>
                     <span class="text-slate-400">·</span>
                     <span class={growth_classes(rec["potential_gain_pct"])}>
-                      reventa {signed_money(rec["potential_gain"])} ({signed_pct(
+                      ganancia {signed_money(rec["potential_gain"])} ({signed_pct(
                         rec["potential_gain_pct"]
                       )})
                     </span>
@@ -403,9 +405,11 @@
                       </span>
                     </p>
                     <p class="text-[11px] text-slate-500">
-                      {pts(rec["total_points"])} pts · {money(rec["price"])} · proyección {money(
-                        rec["expected_resale"]
-                      )} · reventa {signed_money(rec["potential_gain"])}
+                      {pts(rec["total_points"])} pts · {money(rec["price"])} · reventa 7d {money(
+                        resale_edge(rec, "pessimistic")
+                      )}–{money(resale_edge(rec, "optimistic"))} · ganancia {signed_money(
+                        rec["potential_gain"]
+                      )}
                     </p>
                   </div>
                   <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
@@ -414,6 +418,75 @@
                 </li>
               </ul>
             </div>
+          </section>
+
+          <%!-- Pistas de a quién poner en venta --%>
+          <% slots = (@report.budget_summary || %{})["sale_slots"] || %{} %>
+          <section
+            id="sell-hints"
+            class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+                <.icon name="hero-tag" class="h-5 w-5 text-rose-500" /> Poner en venta
+              </h2>
+              <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                {slots["listed"] || 0}/{slots["max"] || 5} en venta
+              </span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">
+              Fuera de tu mejor once y sin aportar puntos ni revalorización.
+            </p>
+            <ul class="mt-3 divide-y divide-slate-100">
+              <li
+                :for={hint <- List.wrap(@report.sell_hints)}
+                id={"sell-hint-#{hint["player_id"]}"}
+                class="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+              >
+                <img
+                  src={player_photo_url(hint["player_id"])}
+                  alt={hint["name"]}
+                  class="h-9 w-9 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
+                />
+                <div class="min-w-0 flex-1">
+                  <p class="flex flex-wrap items-center gap-1.5 font-bold text-slate-900">
+                    <span
+                      :if={pos_label(hint["position"])}
+                      class={pos_classes(pos_label(hint["position"]))}
+                    >
+                      {pos_label(hint["position"])}
+                    </span>
+                    {hint["name"]}
+                    <span class={growth_classes(hint["growth_7d"])}>
+                      {signed_pct(hint["growth_7d"]) || "sin datos"} 7d
+                    </span>
+                  </p>
+                  <p class="text-xs text-slate-500">
+                    {pts(hint["total_points"])} pts · media {pts(hint["season_avg"])} · valor {money(
+                      hint["market_value"]
+                    )}
+                  </p>
+                  <p class="text-[11px] font-semibold text-rose-600">{hint["reason"]}</p>
+                </div>
+                <span
+                  :if={get_in(hint, ["sale_range", "expected"])}
+                  class="shrink-0 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700 ring-1 ring-violet-200"
+                  title="Oferta esperada de la banca al ponerlo en venta"
+                >
+                  ~ {money(get_in(hint, ["sale_range", "expected"]))}
+                </span>
+              </li>
+            </ul>
+            <p
+              :if={@report.sell_hints in [nil, []]}
+              class="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"
+              id="sell-hints-none"
+            >
+              {if (slots["free"] || 0) == 0,
+                do:
+                  "Tienes el máximo de #{slots["max"] || 5} jugadores en venta. Retira alguno para liberar hueco.",
+                else: "Nadie claro para vender: el resto de tu plantilla aporta o se revaloriza."}
+            </p>
           </section>
 
           <%!-- En venta & ofertas recibidas (unificado) --%>

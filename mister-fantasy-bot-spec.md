@@ -92,6 +92,7 @@ Todos son `POST`. Autenticación vía cabecera `X-Auth` + cookies de sesión.
   - Solo se puede usar el **saldo real disponible**, nunca el bonus de +25% (ese bonus es exclusivo de las pujas de mercado).
   - Es "primero que llega, se lo lleva" — cualquier participante de la liga puede ejecutarlo en cuanto lo vea, así que estas oportunidades se marcan con urgencia alta en el informe.
 - **Venta de jugadores:** se ponen "en venta" y **la banca hace una oferta al día** (normalmente de madrugada) a un precio **aleatorio entre el 95% y el 105%** del valor de mercado del jugador. No es una venta inmediata a precio fijo — hay que tratarlo como un rango (pesimista/esperado/optimista), no un número único.
+- **Límite de ventas:** solo se pueden tener **5 jugadores en venta a la vez**. Si ya hay 5, hay que retirar alguno antes de listar otro; el informe calcula los huecos libres descontando los que liberan los titulares que manda retirar (`sale_slots`).
 
 ## 6. Modelo de datos (Ecto / Postgres)
 
@@ -140,6 +141,7 @@ create table(:daily_reports) do
   # {:array, :map} (jsonb[] en Postgres). Con :map el cast falla al persistir.
   add :buy_recommendations, {:array, :map}
   add :sell_recommendations, {:array, :map}
+  add :sell_hints, {:array, :map}
   add :clause_targets, {:array, :map}
   add :best_lineup, :map
   add :alerts, {:array, :string}, default: []
@@ -149,7 +151,7 @@ create unique_index(:daily_reports, [:report_date])
 
 create table(:report_actions) do
   add :daily_report_id, references(:daily_reports), null: false
-  add :kind, :string, null: false # "buy" | "sell" | "clause" | "lineup_change"
+  add :kind, :string, null: false # "buy" | "sell" | "unsell" | "list" | "clause" | "lineup_change"
   add :player_id, references(:players)
   add :description, :string, null: false
   add :suggested_amount, :integer
@@ -437,17 +439,21 @@ Programado vía `Oban.Plugins.Cron` (`"0 7 * * *"` — 7am cada día).
 ## 12. Vista web (Phoenix LiveView) — IMPLEMENTADA
 
 Módulos:
-- `MisterWeb.ReportLive` (montado en `/`): aviso de presupuesto en rojo, tarjetas de presupuesto (saldo real / proyectado / puja máx actual / proyectada), clausulazos pagables, fichajes separados en **pujas con importe** y **seguimientos sin puja** (con crecimiento a 7 días y reventa proyectada), ventas con rango pesimista/esperado/optimista, checklist marcable (`complete/dismiss/undo_action`) y botón "Ejecutar análisis ahora" que encola el job Oban bajo demanda.
+- `MisterWeb.ReportLive` (montado en `/`): aviso de presupuesto en rojo, tarjetas de presupuesto (saldo real / proyectado / puja máx actual / proyectada), clausulazos pagables, fichajes separados en **pujas con importe** y **seguimientos sin puja** (con crecimiento a 7 días y reventa proyectada), ventas con rango pesimista/esperado/optimista, **pistas de a quién poner en venta** (`sell_hints`), checklist marcable (`complete/dismiss/undo_action`) y botón "Ejecutar análisis ahora" que encola el job Oban bajo demanda.
 - `MisterWeb.Components.FormationPitch`: campo visual con CSS (césped rayado, filas por línea FWD→GK derivadas de la formación), avatar circular por jugador con puntos esperados y badge dorado "C" del capitán.
 
 ### Valoración, pujas y cruce de datos
 
 `Mister.Valuation` calcula, del detalle diario (`data.values`), el crecimiento a 1 día / 1 semana / 1 mes, proyecta el valor a 7 días (ritmo semanal, con tope de ±5%/día) y estima el rango de reventa vía banca (95%–105%). De ahí sale la decisión:
 
-* **`:bid`** — revalorización proyectada ≥ 8% sobre el precio de compra, o ratio ≥ 2.0 pts/M€ sin pérdida proyectada. Solo estos reciben `suggested_bid`.
+* **`:bid`** — operación atractiva **por ROI o por dinero**, medida contra la puja (coste real): ROI ≥ 8% **o** ganancia ≥ 250k €, siempre con suelos de 3% y 50k € para no perseguir migajas; o ratio ≥ 2.0 pts/M€ con media ≥ 2.5 (el atajo por valor no vale para jugadores inservibles aunque sean baratos). Solo estos reciben `suggested_bid`.
 * **`:watch`** — el resto (en alza sin recorrido suficiente, o en caída): se muestran con crecimiento y proyección, pero sin importe.
 
+Así un 5% sobre un jugador caro cuenta si deja dinero relevante, aunque no llegue al 8% de ROI. La puja base (`precio + 5%`) nunca supera la reventa esperada ni el máximo de la liga, y la ganancia que se muestra es siempre contra esa puja (no contra el precio de salida). El informe muestra la banda completa 95%–105% (`resale_range`) con la ganancia esperada y la **optimista** (el +5% de la banca).
+
 Las ventas se cruzan con `best_lineup`: un jugador **en venta que es titular** en el mejor once deja de ser "vender" (`verdict: "keep"`), genera una acción `unsell` ("retirar de la venta"), dispara una alerta y fuerza el consejo de cualquier oferta recibida a *rechazar*.
+
+Además, `sell_hints` propone **a quién poner en venta**: jugadores que no están en el mejor once, no están ya listados y no aportan (no puntúan) o pierden valor (`growth_7d` negativo). Los que se revalorizan se mantienen aunque estén en el banquillo. Se muestran con posición, puntos, media, valor, motivo y oferta esperada de la banca, y generan una acción `list` ("poner en venta a X"). El número de pistas se limita a los **huecos libres** de venta (`@max_listed = 5` menos los listados que se mantienen), y `budget_summary.sale_slots` expone `listed`/`max`/`free` para la UI.
 
 `Reports.persist!/1` recarga el informe desde Postgres antes de devolverlo para que las columnas JSONB lleguen siempre con claves string (igual que `latest/0`): la vista y los mensajes de `PubSub` leen el informe serializado de forma consistente.
 

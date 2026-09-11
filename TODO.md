@@ -14,6 +14,8 @@
 - [ ] **Fotos reales de jugadores en el campo** (`FormationPitch`): extraer URL del avatar desde el HTML de `/team` o del JSON de detalle, guardarla en `players.avatar_url` (nueva columna + migración) y usar `<img>` en vez de iniciales.
 - [ ] **Calibrar la fórmula de score de clausulazos** (`ClauseDetector.score/1`) con datos reales de temporada; hoy es un punto de partida (`avg * 10 - clause/M€`).
 - [ ] **Calibrar el filtro de clausulazos**: `value_per_million >= 1.0` y tope de 12 (`@min_value_per_million` / `@max_targets`) ahora que se recorren todas las plantillas rivales.
+- [ ] **Calibrar las pistas de venta** (`Reports.sell_hint_reason/2` y `@max_sell_hints`): los umbrales de media y `growth_7d` son heurísticos.
+- [ ] **Calibrar el umbral de puja** (`Mister.Valuation`): ROI `@bid_gain_pct` 8%, dinero `@bid_gain_abs` 250k, suelos `@bid_min_gain_pct` 3% / `@bid_min_gain_abs` 50k, `@bid_pts_per_million` 2.0 y `@bid_min_avg` 2.5.
 - [ ] **Calibrar los umbrales de puja** (`Mister.Valuation`): `@bid_gain_pct` (8% de reventa proyectada) y `@bid_pts_per_million` (2.0) son heurísticos; ajustar con resultados reales de la temporada.
 - [ ] **Calibrar el horizonte de proyección** (`@horizon_days`, hoy 7 días) y el tope de ±5%/día según cómo se comporte el mercado.
 
@@ -37,5 +39,6 @@
 - [x] Detalle (`/ajax/sw/players`) de todo el mercado y de toda la plantilla: el filtro de lesión/sanción cubre a los 15-18 titulares y los clausulazos ya cargan sus datos
 - [x] Pujas separadas de seguimientos, con crecimiento y reventa proyectada (`Mister.Valuation`)
 - [x] Cruce ventas ↔ mejor once: un titular en venta pasa a "retirar de la venta" (acción `unsell` + alerta)
+- [x] Pistas de a quién **poner en venta** (`sell_hints`): suplentes que no puntúan o pierden valor, con motivo, valor y oferta esperada (acción `list`), limitadas a los huecos libres de venta (máx. 5 en venta)
 - [x] Clausulazos de **todas las plantillas rivales** vía `/standings` + `/ajax/sw/users` (`data.team_now`), no solo de `/market`; con filtro de rendimiento y tope
 - [x] Tests de la vista (12), tests unitarios de `Valuation`, `ClauseDetector`, `Reports`, `StandingsParser` y `Rivals`, y `mix precommit` limpio

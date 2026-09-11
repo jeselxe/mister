@@ -57,4 +57,41 @@ defmodule Mister.ValuationTest do
     assert v.projected_value == 500_000
     assert v.growth_7d == nil
   end
+
+  test "puja por ROI aunque el dinero absoluto sea pequeño si pasa el suelo" do
+    v = %{resale_range: %{pessimistic: 1_150_000, expected: 1_150_000, optimistic: 1_250_000}}
+
+    # +9.5% de ROI y 100k € de ganancia: cumple ambos suelos.
+    assert Valuation.recommendation(v, 1_000_000, bid: 1_050_000) == :bid
+  end
+
+  test "puja por dinero absoluto aunque el % sea menor" do
+    v = %{resale_range: %{pessimistic: 3_570_000, expected: 3_758_000, optimistic: 3_946_000}}
+
+    # 7.2% (< 8%) pero 251k € sobre la puja: compensa por dinero.
+    assert Valuation.recommendation(v, 3_340_000, bid: 3_507_000) == :bid
+  end
+
+  test "no persigue migajas aunque el porcentaje sea alto" do
+    v = %{resale_range: %{pessimistic: 60_000, expected: 70_000, optimistic: 80_000}}
+
+    # +33% pero solo 17.5k €: por debajo del suelo absoluto.
+    assert Valuation.recommendation(v, 50_000, bid: 52_500) == :watch
+  end
+
+  test "el atajo por pts/M€ exige una media mínima" do
+    v = %{resale_range: %{pessimistic: 1_090_000, expected: 1_150_000, optimistic: 1_200_000}}
+
+    assert Valuation.recommendation(v, 1_100_000,
+             bid: 1_100_000,
+             pts_per_million: 6.0,
+             avg: 1.0
+           ) == :watch
+
+    assert Valuation.recommendation(v, 1_100_000,
+             bid: 1_100_000,
+             pts_per_million: 6.0,
+             avg: 3.0
+           ) == :bid
+  end
 end

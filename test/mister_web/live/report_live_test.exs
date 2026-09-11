@@ -92,6 +92,7 @@ defmodule MisterWeb.ReportLiveTest do
       assert has_element?(view, "#buy-3001", "pujar hasta")
       assert has_element?(view, "#buy-3001", "12.5%")
       assert has_element?(view, "#buy-3001", "30 pts totales")
+      assert has_element?(view, "#buy-3001", "reventa 7d 8.740.000 €–9.660.000 €")
 
       # seguimiento sin puja
       assert has_element?(view, "#watch-3002", "sin puja")
@@ -107,6 +108,20 @@ defmodule MisterWeb.ReportLiveTest do
       unsell = Enum.find(report.actions, &(&1.kind == "unsell"))
       assert unsell
       assert has_element?(view, "#action-#{unsell.id}", "Retirar de la venta")
+    end
+
+    test "muestra a quién poner en venta", %{conn: conn, report: report} do
+      {:ok, view, _html} = live(conn, "/")
+
+      assert has_element?(view, "#sell-hints", "Poner en venta")
+      assert has_element?(view, "#sell-hints", "1/5 en venta")
+      assert has_element?(view, "#sell-hint-5001", "N. Serrano")
+      assert has_element?(view, "#sell-hint-5001", "no puntúa y no entra en tu once")
+      assert has_element?(view, "#sell-hint-5001", "~ 160.000 €")
+
+      list_action = Enum.find(report.actions, &(&1.kind == "list"))
+      assert list_action
+      assert has_element?(view, "#action-#{list_action.id}", "Poner en venta a N. Serrano")
     end
 
     test "se actualiza solo cuando llega un nuevo informe por PubSub", %{
@@ -136,7 +151,8 @@ defmodule MisterWeb.ReportLiveTest do
         real_projected: 4_000,
         bid_allowed_now: 12_499_000,
         bid_allowed_projected: 12_504_000,
-        bid_rule: "balance_plus_25"
+        bid_rule: "balance_plus_25",
+        sale_slots: %{listed: 1, max: 5, free: 4}
       },
       buy_recommendations: [
         %{
@@ -152,9 +168,12 @@ defmodule MisterWeb.ReportLiveTest do
           growth_7d: 12.5,
           growth_30d: 40.0,
           projected_value: 9_200_000,
+          resale_range: %{pessimistic: 8_740_000, expected: 9_200_000, optimistic: 9_660_000},
           expected_resale: 9_200_000,
           potential_gain: 1_200_000,
           potential_gain_pct: 15.0,
+          potential_gain_pessimistic: 740_000,
+          potential_gain_optimistic: 1_660_000,
           recommendation: "bid",
           source: "banca",
           seller_name: nil,
@@ -206,6 +225,20 @@ defmodule MisterWeb.ReportLiveTest do
           in_best_lineup: true,
           verdict: "keep",
           sale_range: %{pessimistic: 8_170_000, expected: 8_600_000, optimistic: 9_030_000}
+        }
+      ],
+      sell_hints: [
+        %{
+          player_id: 5001,
+          name: "N. Serrano",
+          position: 3,
+          trend: "down",
+          growth_7d: -23.4,
+          season_avg: 0.0,
+          total_points: 0,
+          market_value: 160_000,
+          sale_range: %{pessimistic: 152_000, expected: 160_000, optimistic: 168_000},
+          reason: "no puntúa y no entra en tu once"
         }
       ],
       clause_targets: [

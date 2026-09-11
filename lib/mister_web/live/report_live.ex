@@ -227,6 +227,11 @@ defmodule MisterWeb.ReportLive do
   def pts(n) when is_integer(n), do: Integer.to_string(n)
   def pts(other), do: to_string(other)
 
+  @doc "Borde del rango de reventa (con respaldo en la proyección esperada)."
+  def resale_edge(rec, edge) do
+    get_in(rec, ["resale_range", edge]) || rec["expected_resale"]
+  end
+
   def trend_icon("up"), do: "hero-arrow-trending-up"
   def trend_icon("down"), do: "hero-arrow-trending-down"
   def trend_icon(_), do: "hero-arrow-long-right"
@@ -268,6 +273,7 @@ defmodule MisterWeb.ReportLive do
   def kind_icon("buy"), do: "hero-shopping-bag"
   def kind_icon("sell"), do: "hero-banknotes"
   def kind_icon("unsell"), do: "hero-arrow-uturn-left"
+  def kind_icon("list"), do: "hero-tag"
   def kind_icon("lineup_change"), do: "hero-arrows-right-left"
   def kind_icon(_), do: "hero-check-circle"
 
@@ -275,6 +281,7 @@ defmodule MisterWeb.ReportLive do
   def kind_label("buy"), do: "Pujar"
   def kind_label("sell"), do: "Vender"
   def kind_label("unsell"), do: "Retirar de la venta"
+  def kind_label("list"), do: "Poner en venta"
   def kind_label("lineup_change"), do: "Alineación"
   def kind_label(_), do: "Tarea"
 

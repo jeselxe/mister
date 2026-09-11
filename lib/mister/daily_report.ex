@@ -8,6 +8,7 @@ defmodule Mister.DailyReport do
     field :budget_summary, :map
     field :buy_recommendations, {:array, :map}
     field :sell_recommendations, {:array, :map}
+    field :sell_hints, {:array, :map}
     field :clause_targets, {:array, :map}
     field :best_lineup, :map
     field :alerts, {:array, :string}, default: []
@@ -24,6 +25,7 @@ defmodule Mister.DailyReport do
       :budget_summary,
       :buy_recommendations,
       :sell_recommendations,
+      :sell_hints,
       :clause_targets,
       :best_lineup,
       :alerts

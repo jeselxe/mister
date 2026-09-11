@@ -22,10 +22,20 @@ defmodule Mister.Valuation do
   @horizon_days 7
   @max_daily_rate 0.05
   @min_daily_rate -0.05
-  # Ganancia proyectada mínima (vs precio de compra) para recomendar pujar.
+  # ROI objetivo (revalorización proyectada / coste de la puja).
   @bid_gain_pct 8.0
+  # O una ganancia absoluta relevante aunque el % sea menor: 250k € en una
+  # semana es dinero real aunque sobre un jugador caro sea "solo" un 5%.
+  @bid_gain_abs 250_000
+  # Suelos para no perseguir migajas (ni % alto sin dinero) ni inmovilizar
+  # capital por calderilla.
+  @bid_min_gain_pct 3.0
+  @bid_min_gain_abs 50_000
   # O un ratio puntos por millón que compense aunque la proyección no destaque.
   @bid_pts_per_million 2.0
+  # Y, en ese atajo, el jugador debe ser al menos titularizable (si no, su
+  # ratio alto solo refleja que es barato/inservible).
+  @bid_min_avg 2.5
 
   @doc """
   Calcula crecimiento, proyección y rango de reventa a partir de un detalle.
@@ -71,30 +81,51 @@ defmodule Mister.Valuation do
   @doc """
   Decide si el jugador merece una puja (`:bid`) o solo seguimiento (`:watch`).
 
-  `price` es el precio de compra/mercado y `opts` acepta `:affordable?`,
-  `:pts_per_million` y `:expected_resale` (por si el precio de compra difiere
-  del valor de mercado).
+  `price` es el precio de salida y `opts` acepta:
+
+    * `:bid` — lo que costaría de verdad la puja; la ganancia se mide contra
+      este importe (no contra el precio de salida, que se queda corto).
+    * `:affordable?` — si la puja cabe en el presupuesto.
+    * `:pts_per_million` y `:avg` — atajo por valor (puntos por millón) para
+      jugadores útiles.
+
+  Además de superar el umbral, la operación debe ser atractiva **en porcentaje
+  o en dinero**: un 5% sobre un jugador caro puede dejar más euros que un 40%
+  sobre uno barato, así que vale cualquiera de las dos vías, con suelos para no
+  perseguir migajas. La ganancia se mide siempre contra la puja (coste real).
   """
   def recommendation(valuation, price, opts \\ []) do
     affordable? = Keyword.get(opts, :affordable?, true)
     pts_per_million = Keyword.get(opts, :pts_per_million)
-    resale = Keyword.get(opts, :expected_resale, get_in(valuation, [:resale_range, :expected]))
-    gain_pct = gain_pct(resale, price)
+    avg = Keyword.get(opts, :avg)
+    cost = Keyword.get(opts, :bid) || price
+    expected = get_in(valuation, [:resale_range, :expected])
+    gain = gain(expected, cost)
+    pct = gain_pct(expected, cost)
 
     cond do
       not affordable? ->
         :watch
 
-      is_number(gain_pct) and gain_pct >= @bid_gain_pct ->
+      attractive?(gain, pct) ->
         :bid
 
       is_number(pts_per_million) and pts_per_million >= @bid_pts_per_million and
-          (is_nil(gain_pct) or gain_pct >= 0) ->
+        is_number(avg) and avg >= @bid_min_avg and is_number(gain) and
+          gain >= @bid_min_gain_abs ->
         :bid
 
       true ->
         :watch
     end
+  end
+
+  # Atractiva por ROI (≥ 8%) o por dinero absoluto (≥ 250k), siempre que pase
+  # los suelos (≥ 3% y ≥ 50k) para no recomendar migajas.
+  defp attractive?(gain, pct) do
+    is_number(gain) and gain >= @bid_min_gain_abs and
+      is_number(pct) and pct >= @bid_min_gain_pct and
+      (pct >= @bid_gain_pct or gain >= @bid_gain_abs)
   end
 
   @doc "Ganancia absoluta de revender a `resale` algo comprado a `price`."

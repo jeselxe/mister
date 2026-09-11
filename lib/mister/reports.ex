@@ -21,7 +21,10 @@ defmodule Mister.Reports do
 
   alias Mister.{DailyReport, Player, ReportAction, Repo, SaleEstimator, Valuation}
 
-  @kind_priority ["clause", "buy", "sell", "unsell", "lineup_change"]
+  @kind_priority ["clause", "buy", "sell", "unsell", "list", "lineup_change"]
+  @max_sell_hints 6
+  # Mister solo deja tener 5 jugadores en venta a la vez.
+  @max_listed 5
 
   ## Build
 
@@ -41,6 +44,8 @@ defmodule Mister.Reports do
 
     buy_recommendations = buy_recommendations(buy_candidates, budget, valuations)
     sell_recommendations = sell_recommendations(my_squad, lineup, valuations)
+    sale_slots = sale_slots(my_squad, lineup)
+    sell_hints = sell_hints(my_squad, lineup, valuations, sale_slots.free)
 
     %{
       report_date: Date.utc_today(),
@@ -51,10 +56,16 @@ defmodule Mister.Reports do
         real_projected: budget.real_projected,
         bid_allowed_now: budget.bid_allowed_now,
         bid_allowed_projected: budget.bid_allowed_projected,
-        bid_rule: to_string(budget.bid_rule)
+        bid_rule: to_string(budget.bid_rule),
+        sale_slots: %{
+          listed: sale_slots.listed,
+          max: sale_slots.max,
+          free: sale_slots.free
+        }
       },
       buy_recommendations: buy_recommendations,
       sell_recommendations: sell_recommendations,
+      sell_hints: sell_hints,
       clause_targets: clause_targets,
       best_lineup: lineup,
       alerts: build_alerts(budget, lineup, clause_targets, sell_recommendations)
@@ -160,14 +171,22 @@ defmodule Mister.Reports do
   defp buy_recommendation(row, budget, valuations) do
     valuation = Map.get(valuations, row.player_id) || Valuation.from_detail(%{}, row.price)
     pts_per_million = pts_per_million(row)
+    resale = valuation.resale_range
+
+    # La puja es el coste real de la operación: la ganancia se mide contra ella.
+    bid = base_bid(row.price, budget.bid_allowed_now, resale.expected)
 
     recommendation =
       Valuation.recommendation(valuation, row.price,
+        bid: bid,
         affordable?: affordable?(row.price, budget.bid_allowed_now),
-        pts_per_million: pts_per_million
+        pts_per_million: pts_per_million,
+        avg: row.season_avg
       )
 
-    resale = valuation.resale_range.expected
+    # El coste real es la puja (precio + 5%, acotada); la ganancia se muestra
+    # siempre contra ese importe, no contra el precio de salida.
+    cost = if is_integer(bid), do: bid, else: row.price
 
     %{
       player_id: row.player_id,
@@ -182,17 +201,17 @@ defmodule Mister.Reports do
       growth_7d: valuation.growth_7d,
       growth_30d: valuation.growth_30d,
       projected_value: valuation.projected_value,
-      expected_resale: resale,
-      potential_gain: Valuation.gain(resale, row.price),
-      potential_gain_pct: Valuation.gain_pct(resale, row.price),
+      resale_range: resale,
+      expected_resale: resale.expected,
+      cost: cost,
+      potential_gain: Valuation.gain(resale.expected, cost),
+      potential_gain_pct: Valuation.gain_pct(resale.expected, cost),
+      potential_gain_pessimistic: Valuation.gain(resale.pessimistic, cost),
+      potential_gain_optimistic: Valuation.gain(resale.optimistic, cost),
       recommendation: to_string(recommendation),
       source: source(row),
       seller_name: seller_label(row),
-      suggested_bid:
-        if(recommendation == :bid,
-          do: suggested_bid(row.price, budget.bid_allowed_now),
-          else: nil
-        )
+      suggested_bid: if(recommendation == :bid, do: bid, else: nil)
     }
   end
 
@@ -225,6 +244,76 @@ defmodule Mister.Reports do
 
   defp sell_rank("sell"), do: 0
   defp sell_rank(_), do: 1
+
+  # Huecos de venta disponibles. Los jugadores ya listados que el informe manda
+  # retirar (titulares, `keep`) liberan su hueco, así que se descuentan.
+  defp sale_slots(my_squad, lineup) do
+    picked = MapSet.new(Map.get(lineup, :players, []), & &1.player_id)
+    listed = Enum.count(my_squad, & &1.for_sale?)
+    keep = Enum.count(my_squad, &(&1.for_sale? and MapSet.member?(picked, &1.player_id)))
+
+    %{listed: listed, max: @max_listed, keep: keep, free: max(@max_listed - (listed - keep), 0)}
+  end
+
+  # Pistas de a quién **poner en venta**: jugadores fuera del mejor once que
+  # no puntúan y/o pierden valor. No entran los ya listados (esos van en
+  # `sell_recommendations`) ni los titulares. `free_slots` limita cuántos se
+  # pueden listar de verdad (Mister deja 5 en venta como máximo).
+  defp sell_hints(my_squad, lineup, valuations, free_slots) do
+    picked = MapSet.new(Map.get(lineup, :players, []), & &1.player_id)
+
+    my_squad
+    |> Enum.reject(&(&1.for_sale? or MapSet.member?(picked, &1.player_id)))
+    |> Enum.map(&sell_hint(&1, valuations))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort_by(& &1.sort_key)
+    |> Enum.take(min(@max_sell_hints, free_slots))
+    |> Enum.map(&Map.delete(&1, :sort_key))
+  end
+
+  defp sell_hint(row, valuations) do
+    valuation = Map.get(valuations, row.player_id, %{})
+    avg = row.season_avg || 0.0
+    growth = valuation[:growth_7d]
+    value = valuation[:value] || row.price
+
+    case sell_hint_reason(avg, growth) do
+      nil ->
+        nil
+
+      reason ->
+        %{
+          player_id: row.player_id,
+          name: row.name,
+          position: row.position,
+          trend: to_string(row.trend || :flat),
+          season_avg: row.season_avg,
+          total_points: valuation[:total_points],
+          growth_7d: growth,
+          market_value: value,
+          sale_range: value && SaleEstimator.expected_range(value),
+          reason: reason,
+          # Los más urgentes primero: mayor caída y menos puntos.
+          sort_key: {growth || 0.0, avg}
+        }
+    end
+  end
+
+  defp sell_hint_reason(avg, growth) do
+    cond do
+      avg <= 0.0 and (is_nil(growth) or growth < 5.0) ->
+        "no puntúa y no entra en tu once"
+
+      is_number(growth) and growth < -5.0 ->
+        "en caída: mejor vender antes de que baje más"
+
+      avg < 2.5 and (is_nil(growth) or growth < 1.0) ->
+        "sin sitio en el once y sin revalorización"
+
+      true ->
+        nil
+    end
+  end
 
   defp pts_per_million(%{season_avg: avg, price: price})
        when is_number(avg) and is_integer(price) and price > 0,
@@ -285,9 +374,22 @@ defmodule Mister.Reports do
         }
       end)
 
+    list_actions =
+      report_map
+      |> Map.get(:sell_hints, [])
+      |> Enum.map(fn hint ->
+        %{
+          kind: "list",
+          mister_id: hint.player_id,
+          description: "Poner en venta a #{hint.name} (#{hint.reason})",
+          suggested_amount: hint.sale_range && hint.sale_range.expected
+        }
+      end)
+
     lineup_actions = lineup_actions(report_map)
 
-    (clause_actions ++ buy_actions ++ sell_actions ++ unsell_actions ++ lineup_actions)
+    (clause_actions ++
+       buy_actions ++ sell_actions ++ unsell_actions ++ list_actions ++ lineup_actions)
     |> Enum.sort_by(&kind_index(&1.kind))
   end
 
@@ -348,11 +450,16 @@ defmodule Mister.Reports do
     if owner in [nil, "0"] and seller in [nil, "", "Libre", "Mister"], do: nil, else: seller
   end
 
-  # Puja sugerida: precio + 5%, sin pasar nunca del máximo permitido por la liga.
-  defp suggested_bid(nil, _cap), do: nil
-  defp suggested_bid(price, :unlimited), do: price + div(price, 20)
-  defp suggested_bid(price, cap) when is_integer(cap), do: min(price + div(price, 20), cap)
-  defp suggested_bid(_price, _cap), do: nil
+  # Puja base: precio + 5% para ganar la puja, sin pasar del máximo de la liga
+  # ni de la reventa esperada (no se puja por encima de lo que se espera
+  # recuperar). El importe final solo se propone si la recomendación es `:bid`.
+  defp base_bid(nil, _cap, _resale), do: nil
+
+  defp base_bid(price, cap, resale),
+    do: (price + div(price, 20)) |> min_cap(cap) |> min_cap(resale)
+
+  defp min_cap(bid, limit) when is_integer(limit), do: min(bid, limit)
+  defp min_cap(bid, _limit), do: bid
 
   ## Alerts
 

@@ -1,7 +1,7 @@
 defmodule Mister.ReportAction do
   @moduledoc """
-  Tarea del checklist diario: "buy" | "sell" | "unsell" | "clause" |
-  "lineup_change". Estado: pending | done | dismissed.
+  Tarea del checklist diario: "buy" | "sell" | "unsell" | "list" |
+  "clause" | "lineup_change". Estado: pending | done | dismissed.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -21,7 +21,7 @@ defmodule Mister.ReportAction do
     action
     |> cast(attrs, [:daily_report_id, :kind, :player_id, :description, :suggested_amount, :status])
     |> validate_required([:daily_report_id, :kind, :description])
-    |> validate_inclusion(:kind, ["buy", "sell", "unsell", "clause", "lineup_change"])
+    |> validate_inclusion(:kind, ["buy", "sell", "unsell", "list", "clause", "lineup_change"])
     |> validate_inclusion(:status, ["pending", "done", "dismissed"])
   end
 end
