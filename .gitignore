@@ -39,6 +39,7 @@ npm-debug.log
 *.db
 *.db-*
 
+.DS_Store
 
 # Local dev secrets (database credentials, etc.)
 /config/dev.secret.exs
