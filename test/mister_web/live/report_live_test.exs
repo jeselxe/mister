@@ -96,6 +96,14 @@ defmodule MisterWeb.ReportLiveTest do
 
       # seguimiento sin puja
       assert has_element?(view, "#watch-3002", "sin puja")
+
+      # deslizador de puja: aparece con margen a precio de mercado y se oculta
+      # cuando la reventa esperada está por debajo del precio
+      assert has_element?(view, "#bid-slider-3001 input[type=range]")
+      assert has_element?(view, "#bid-slider-3001", "+800.000 €")
+      assert has_element?(view, "#bid-slider-3002 input[type=range]")
+      assert has_element?(view, "#watch-3003")
+      refute has_element?(view, "#bid-slider-3003")
     end
 
     test "un titular en venta se marca como no vender", %{conn: conn, report: report} do
@@ -170,10 +178,11 @@ defmodule MisterWeb.ReportLiveTest do
           projected_value: 9_200_000,
           resale_range: %{pessimistic: 8_740_000, expected: 9_200_000, optimistic: 9_660_000},
           expected_resale: 9_200_000,
-          potential_gain: 1_200_000,
-          potential_gain_pct: 15.0,
-          potential_gain_pessimistic: 740_000,
-          potential_gain_optimistic: 1_660_000,
+          cost: 8_400_000,
+          potential_gain: 800_000,
+          potential_gain_pct: 9.5,
+          potential_gain_pessimistic: 340_000,
+          potential_gain_optimistic: 1_260_000,
           recommendation: "bid",
           source: "banca",
           seller_name: nil,
@@ -195,6 +204,31 @@ defmodule MisterWeb.ReportLiveTest do
           expected_resale: 2_020_000,
           potential_gain: 20_000,
           potential_gain_pct: 1.0,
+          recommendation: "watch",
+          source: "usuario",
+          seller_name: "Fran",
+          suggested_bid: nil
+        },
+        %{
+          player_id: 3003,
+          name: "Bajista",
+          position: 2,
+          price: 2_000_000,
+          season_avg: 1.0,
+          total_points: 3,
+          pts_per_million: 0.5,
+          trend: "down",
+          growth_1d: -1.0,
+          growth_7d: -5.0,
+          growth_30d: -20.0,
+          projected_value: 1_900_000,
+          resale_range: %{pessimistic: 1_805_000, expected: 1_900_000, optimistic: 1_995_000},
+          expected_resale: 1_900_000,
+          cost: 2_000_000,
+          potential_gain: -100_000,
+          potential_gain_pct: -5.0,
+          potential_gain_pessimistic: -195_000,
+          potential_gain_optimistic: -5_000,
           recommendation: "watch",
           source: "usuario",
           seller_name: "Fran",

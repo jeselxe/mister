@@ -309,6 +309,71 @@ defmodule MisterWeb.ReportLive do
   def premium_classes(pct) when is_number(pct) and pct <= 110, do: "font-bold text-amber-600"
   def premium_classes(_), do: "font-bold text-red-600"
 
+  @doc "¿Hay margen a precio de mercado como para enseñar el deslizador de puja?"
+  def slider?(%{"expected_resale" => expected, "price" => price})
+      when is_integer(expected) and is_integer(price),
+      do: expected > price
+
+  def slider?(_), do: false
+
+  attr :id, :string, required: true
+  attr :rec, :map, required: true
+
+  @doc """
+  Deslizador de puja: mueve el importe y ve la ganancia al momento
+  (`expected_resale - puja`), calculada en el cliente sin ir al servidor.
+  """
+  def bid_slider(assigns) do
+    rec = assigns.rec
+    expected = rec["expected_resale"] || 0
+    price = rec["price"] || 0
+    value = rec["suggested_bid"] || price
+    gain = expected - value
+    pct = if value > 0, do: Float.round(gain / value * 100, 1), else: 0.0
+
+    assigns =
+      assign(assigns,
+        expected: expected,
+        price: price,
+        value: value,
+        step: max(div(max(expected - price, 0), 50), 5_000),
+        gain: gain,
+        pct: pct,
+        gain_class: if(gain >= 0, do: "text-emerald-600", else: "text-red-600")
+      )
+
+    ~H"""
+    <div
+      :if={slider?(@rec)}
+      id={@id}
+      phx-hook=".BidSlider"
+      phx-update="ignore"
+      data-expected={@expected}
+      class="mt-2 rounded-lg bg-slate-50 px-2.5 py-2 ring-1 ring-slate-200"
+    >
+      <input
+        type="range"
+        min={@price}
+        max={@expected}
+        step={@step}
+        value={@value}
+        class="w-full accent-sky-600"
+        aria-label="Importe de la puja"
+      />
+      <div class="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+        <span>
+          pujas <span data-out="bid" class="font-bold text-slate-700">{money(@value)}</span>
+        </span>
+        <span>
+          ganancia
+          <span data-out="gain" class={["font-black", @gain_class]}>{signed_money(@gain)}</span>
+          (<span data-out="pct">{signed_pct(@pct)}</span>)
+        </span>
+      </div>
+    </div>
+    """
+  end
+
   @doc "Importe con signo para ganancias/pérdidas proyectadas."
   def signed_money(nil), do: "?"
 

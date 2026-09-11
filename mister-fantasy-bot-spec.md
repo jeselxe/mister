@@ -439,7 +439,7 @@ Programado vía `Oban.Plugins.Cron` (`"0 7 * * *"` — 7am cada día).
 ## 12. Vista web (Phoenix LiveView) — IMPLEMENTADA
 
 Módulos:
-- `MisterWeb.ReportLive` (montado en `/`): aviso de presupuesto en rojo, tarjetas de presupuesto (saldo real / proyectado / puja máx actual / proyectada), clausulazos pagables, fichajes separados en **pujas con importe** y **seguimientos sin puja** (con crecimiento a 7 días y reventa proyectada), ventas con rango pesimista/esperado/optimista, **pistas de a quién poner en venta** (`sell_hints`), checklist marcable (`complete/dismiss/undo_action`) y botón "Ejecutar análisis ahora" que encola el job Oban bajo demanda.
+- `MisterWeb.ReportLive` (montado en `/`): aviso de presupuesto en rojo, tarjetas de presupuesto (saldo real / proyectado / puja máx actual / proyectada), clausulazos pagables, fichajes separados en **pujas con importe** y **seguimientos sin puja** (con crecimiento a 7 días y reventa proyectada), ventas con rango pesimista/esperado/optimista, **pistas de a quién poner en venta** (`sell_hints`), **deslizador de puja** por jugador, checklist marcable (`complete/dismiss/undo_action`) y botón "Ejecutar análisis ahora" que encola el job Oban bajo demanda.
 - `MisterWeb.Components.FormationPitch`: campo visual con CSS (césped rayado, filas por línea FWD→GK derivadas de la formación), avatar circular por jugador con puntos esperados y badge dorado "C" del capitán.
 
 ### Valoración, pujas y cruce de datos
@@ -450,6 +450,8 @@ Módulos:
 * **`:watch`** — el resto (en alza sin recorrido suficiente, o en caída): se muestran con crecimiento y proyección, pero sin importe.
 
 Así un 5% sobre un jugador caro cuenta si deja dinero relevante, aunque no llegue al 8% de ROI. La puja base (`precio + 5%`) nunca supera la reventa esperada ni el máximo de la liga, y la ganancia que se muestra es siempre contra esa puja (no contra el precio de salida). El informe muestra la banda completa 95%–105% (`resale_range`) con la ganancia esperada y la **optimista** (el +5% de la banca).
+
+Cada fichaje con margen a precio de mercado (`expected_resale > price`) lleva además un **deslizador de puja** (`ReportLive.bid_slider` + hook colocado `.BidSlider`): mueve el importe entre el precio de mercado y la reventa esperada y la ganancia (`reventa − puja`) se recalcula en el cliente, sin ida y vuelta al servidor. Sirve para ver que un jugador puede salir a cuentas comprado a precio de mercado aunque no al alza que hace falta para ganar la puja.
 
 Las ventas se cruzan con `best_lineup`: un jugador **en venta que es titular** en el mejor once deja de ser "vender" (`verdict: "keep"`), genera una acción `unsell` ("retirar de la venta"), dispara una alerta y fuerza el consejo de cualquier oferta recibida a *rechazar*.
 

@@ -289,82 +289,85 @@
               <li
                 :for={rec <- bid_buys}
                 id={"buy-#{rec["player_id"]}"}
-                class="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                class="py-2.5 first:pt-0 last:pb-0"
               >
-                <img
-                  src={player_photo_url(rec["player_id"])}
-                  alt={rec["name"]}
-                  class="h-9 w-9 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
-                />
-                <div class="min-w-0 flex-1">
-                  <p class="flex flex-wrap items-center gap-1.5 font-bold text-slate-900">
-                    <span
-                      :if={pos_label(rec["position"])}
-                      class={pos_classes(pos_label(rec["position"]))}
-                    >
-                      {pos_label(rec["position"])}
-                    </span>
-                    {rec["name"]}
-                    <span
-                      class={trend_classes(rec["trend"])}
-                      title={"tendencia " <> (rec["trend"] || "flat")}
-                    >
-                      <.icon name={trend_icon(rec["trend"])} class="h-3.5 w-3.5" />
-                      {trend_label(rec["trend"])}
-                    </span>
-                    <span
-                      class={[
-                        "rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ring-1",
-                        if(rec["source"] == "banca",
-                          do: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-                          else: "bg-slate-100 text-slate-600 ring-slate-200"
-                        )
-                      ]}
-                      title={
-                        if(rec["source"] == "banca",
-                          do: "Listado por la banca (sin propietario)",
-                          else: "Listado por otro usuario"
-                        )
-                      }
-                    >
-                      {rec["source"] || "mercado"}
-                    </span>
-                  </p>
-                  <p class="text-xs text-slate-500">
-                    {pts(rec["total_points"])} pts totales · media {pts(rec["season_avg"])} · precio {money(
-                      rec["price"]
-                    )}{if rec[
-                            "seller_name"
-                          ],
-                          do:
-                            " · de " <>
-                              rec[
-                                "seller_name"
-                              ],
-                          else: ""}
-                  </p>
-                  <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
-                    <span class={growth_classes(rec["growth_7d"])}>
-                      <.icon name="hero-arrow-trending-up" class="inline h-3 w-3" />
-                      {signed_pct(rec["growth_7d"]) || "sin datos"} 7d
-                    </span>
-                    <span class="text-slate-400">·</span>
-                    <span class="text-slate-500">
-                      reventa 7d {money(resale_edge(rec, "pessimistic"))}–{money(
-                        resale_edge(rec, "optimistic")
-                      )}
-                    </span>
-                    <span class="text-slate-400">·</span>
-                    <span class={growth_classes(rec["potential_gain_pct"])}>
-                      ganancia {signed_money(rec["potential_gain"])} ({signed_pct(
-                        rec["potential_gain_pct"]
-                      )})
-                    </span>
+                <div class="flex items-center justify-between gap-3">
+                  <img
+                    src={player_photo_url(rec["player_id"])}
+                    alt={rec["name"]}
+                    class="h-9 w-9 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <p class="flex flex-wrap items-center gap-1.5 font-bold text-slate-900">
+                      <span
+                        :if={pos_label(rec["position"])}
+                        class={pos_classes(pos_label(rec["position"]))}
+                      >
+                        {pos_label(rec["position"])}
+                      </span>
+                      {rec["name"]}
+                      <span
+                        class={trend_classes(rec["trend"])}
+                        title={"tendencia " <> (rec["trend"] || "flat")}
+                      >
+                        <.icon name={trend_icon(rec["trend"])} class="h-3.5 w-3.5" />
+                        {trend_label(rec["trend"])}
+                      </span>
+                      <span
+                        class={[
+                          "rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ring-1",
+                          if(rec["source"] == "banca",
+                            do: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+                            else: "bg-slate-100 text-slate-600 ring-slate-200"
+                          )
+                        ]}
+                        title={
+                          if(rec["source"] == "banca",
+                            do: "Listado por la banca (sin propietario)",
+                            else: "Listado por otro usuario"
+                          )
+                        }
+                      >
+                        {rec["source"] || "mercado"}
+                      </span>
+                    </p>
+                    <p class="text-xs text-slate-500">
+                      {pts(rec["total_points"])} pts totales · media {pts(rec["season_avg"])} · precio {money(
+                        rec["price"]
+                      )}{if rec[
+                              "seller_name"
+                            ],
+                            do:
+                              " · de " <>
+                                rec[
+                                  "seller_name"
+                                ],
+                            else: ""}
+                    </p>
+                    <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                      <span class={growth_classes(rec["growth_7d"])}>
+                        <.icon name="hero-arrow-trending-up" class="inline h-3 w-3" />
+                        {signed_pct(rec["growth_7d"]) || "sin datos"} 7d
+                      </span>
+                      <span class="text-slate-400">·</span>
+                      <span class="text-slate-500">
+                        reventa 7d {money(resale_edge(rec, "pessimistic"))}–{money(
+                          resale_edge(rec, "optimistic")
+                        )}
+                      </span>
+                      <span class="text-slate-400">·</span>
+                      <span class={growth_classes(rec["potential_gain_pct"])}>
+                        ganancia {signed_money(rec["potential_gain"])} ({signed_pct(
+                          rec["potential_gain_pct"]
+                        )})
+                      </span>
+                    </div>
                   </div>
+                  <span class="shrink-0 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 ring-1 ring-sky-200">
+                    pujar hasta {money(rec["suggested_bid"])}
+                  </span>
                 </div>
-                <span class="shrink-0 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 ring-1 ring-sky-200">
-                  pujar hasta {money(rec["suggested_bid"])}
-                </span>
+                <.bid_slider :if={slider?(rec)} id={"bid-slider-#{rec["player_id"]}"} rec={rec} />
               </li>
             </ul>
             <p
@@ -384,40 +387,70 @@
                 <li
                   :for={rec <- watched_buys}
                   id={"watch-#{rec["player_id"]}"}
-                  class="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
+                  class="py-2 first:pt-0 last:pb-0"
                 >
-                  <img
-                    src={player_photo_url(rec["player_id"])}
-                    alt={rec["name"]}
-                    class="h-8 w-8 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
-                  />
-                  <div class="min-w-0 flex-1">
-                    <p class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800">
-                      <span
-                        :if={pos_label(rec["position"])}
-                        class={pos_classes(pos_label(rec["position"]))}
-                      >
-                        {pos_label(rec["position"])}
-                      </span>
-                      {rec["name"]}
-                      <span class={growth_classes(rec["growth_7d"])}>
-                        {signed_pct(rec["growth_7d"]) || "sin datos"} 7d
-                      </span>
-                    </p>
-                    <p class="text-[11px] text-slate-500">
-                      {pts(rec["total_points"])} pts · {money(rec["price"])} · reventa 7d {money(
-                        resale_edge(rec, "pessimistic")
-                      )}–{money(resale_edge(rec, "optimistic"))} · ganancia {signed_money(
-                        rec["potential_gain"]
-                      )}
-                    </p>
+                  <div class="flex items-center justify-between gap-3">
+                    <img
+                      src={player_photo_url(rec["player_id"])}
+                      alt={rec["name"]}
+                      class="h-8 w-8 shrink-0 rounded-full bg-slate-100 object-cover ring-1 ring-slate-200"
+                    />
+                    <div class="min-w-0 flex-1">
+                      <p class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800">
+                        <span
+                          :if={pos_label(rec["position"])}
+                          class={pos_classes(pos_label(rec["position"]))}
+                        >
+                          {pos_label(rec["position"])}
+                        </span>
+                        {rec["name"]}
+                        <span class={growth_classes(rec["growth_7d"])}>
+                          {signed_pct(rec["growth_7d"]) || "sin datos"} 7d
+                        </span>
+                      </p>
+                      <p class="text-[11px] text-slate-500">
+                        {pts(rec["total_points"])} pts · {money(rec["price"])} · reventa 7d {money(
+                          resale_edge(rec, "pessimistic")
+                        )}–{money(resale_edge(rec, "optimistic"))} · ganancia {signed_money(
+                          rec["potential_gain"]
+                        )}
+                      </p>
+                    </div>
+                    <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                      sin puja
+                    </span>
                   </div>
-                  <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    sin puja
-                  </span>
+                  <.bid_slider :if={slider?(rec)} id={"bid-slider-#{rec["player_id"]}"} rec={rec} />
                 </li>
               </ul>
             </div>
+
+            <script :type={Phoenix.LiveView.ColocatedHook} name=".BidSlider">
+              export default {
+                mounted() {
+                  this.input = this.el.querySelector("input[type=range]")
+                  this.expected = Number(this.el.dataset.expected)
+                  this.out = {
+                    bid: this.el.querySelector('[data-out="bid"]'),
+                    gain: this.el.querySelector('[data-out="gain"]'),
+                    pct: this.el.querySelector('[data-out="pct"]'),
+                  }
+                  this.fmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 })
+                  this.input.addEventListener("input", () => this.render())
+                  this.render()
+                },
+                render() {
+                  const bid = Number(this.input.value) || 0
+                  const gain = this.expected - bid
+                  const pct = bid > 0 ? (gain / bid) * 100 : 0
+                  this.out.bid.textContent = `${this.fmt.format(bid)} €`
+                  this.out.gain.textContent = `${gain >= 0 ? "+" : "−"}${this.fmt.format(Math.abs(gain))} €`
+                  this.out.pct.textContent = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`
+                  this.out.gain.classList.toggle("text-emerald-600", gain >= 0)
+                  this.out.gain.classList.toggle("text-red-600", gain < 0)
+                },
+              }
+            </script>
           </section>
 
           <%!-- Pistas de a quién poner en venta --%>
