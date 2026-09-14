@@ -44,6 +44,10 @@ defmodule MisterWeb.ReportLiveTest do
       assert has_element?(view, "#budget-summary")
       assert render(view) =~ "-1.000 €"
 
+      # ayuda y navegación
+      assert has_element?(view, "#report-legend", "¿Qué significan los números?")
+      assert has_element?(view, "#report-nav", "Clausulazos")
+
       # clausulazos
       assert has_element?(view, "#clause-2001", "Kylian Mbappé")
       assert has_element?(view, "#clause-2001", "de ElHu$tler")
@@ -60,7 +64,7 @@ defmodule MisterWeb.ReportLiveTest do
 
       # checklist
       [clause_action | rest] = Enum.sort_by(report.actions, & &1.id)
-      assert has_element?(view, "#action-#{clause_action.id}", "Clausulazo: Kylian Mbappé")
+      assert has_element?(view, "#action-#{clause_action.id}", "Kylian Mbappé")
       assert Enum.any?(rest, &has_element?(view, "#action-#{&1.id}"))
     end
 
@@ -115,7 +119,7 @@ defmodule MisterWeb.ReportLiveTest do
 
       unsell = Enum.find(report.actions, &(&1.kind == "unsell"))
       assert unsell
-      assert has_element?(view, "#action-#{unsell.id}", "Retirar de la venta")
+      assert has_element?(view, "#action-#{unsell.id}", "Koke")
     end
 
     test "muestra a quién poner en venta", %{conn: conn, report: report} do
@@ -129,7 +133,7 @@ defmodule MisterWeb.ReportLiveTest do
 
       list_action = Enum.find(report.actions, &(&1.kind == "list"))
       assert list_action
-      assert has_element?(view, "#action-#{list_action.id}", "Poner en venta a N. Serrano")
+      assert has_element?(view, "#action-#{list_action.id}", "N. Serrano")
     end
 
     test "se actualiza solo cuando llega un nuevo informe por PubSub", %{

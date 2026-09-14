@@ -38,6 +38,7 @@ defmodule MisterWeb.ReportLive do
       |> assign(:actions, actions_of(report))
       |> assign(:offers, [])
       |> assign(:offers_error, nil)
+      |> assign(:confirming, nil)
 
     socket =
       if connected?(socket) do
@@ -81,20 +82,33 @@ defmodule MisterWeb.ReportLive do
     {:noreply, load_offers(socket)}
   end
 
-  # Acepta una oferta real en Mister (acción sobre la cuenta).
+  # Aceptar una oferta real en Mister. Es irreversible (la venta es final),
+  # así que se pide una segunda pulsación de confirmación.
   @impl true
   def handle_event("accept_offer", %{"id_bid" => id_bid, "amount" => amount}, socket) do
-    case Mister.Client.accept_offer(String.to_integer(id_bid), String.to_integer(amount)) do
-      {:ok, :accepted} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Oferta aceptada ✅")
-         |> load_offers()}
+    id_bid = String.to_integer(id_bid)
 
-      {:error, reason} ->
-        Logger.error("ReportLive: no se pudo aceptar la oferta: #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "No se pudo aceptar la oferta")}
+    if socket.assigns[:confirming] == id_bid do
+      case Mister.Client.accept_offer(id_bid, String.to_integer(amount)) do
+        {:ok, :accepted} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Oferta aceptada ✅")
+           |> load_offers()}
+
+        {:error, reason} ->
+          Logger.error("ReportLive: no se pudo aceptar la oferta: #{inspect(reason)}")
+          {:noreply, put_flash(socket, :error, "No se pudo aceptar la oferta")}
+      end
+    else
+      {:noreply, assign(socket, :confirming, id_bid)}
     end
+  end
+
+  # Cancela la confirmación pendiente sin tocar la oferta.
+  @impl true
+  def handle_event("cancel_accept", _params, socket) do
+    {:noreply, assign(socket, :confirming, nil)}
   end
 
   # Deniega la oferta y mantiene el jugador a la escucha de nuevas ofertas.
@@ -131,14 +145,18 @@ defmodule MisterWeb.ReportLive do
   defp load_offers(socket) do
     case Mister.Client.fetch_offers_received() do
       {:ok, offers} ->
-        assign(socket, :offers, Enum.map(offers, &enrich_with_purchase_price/1))
+        socket
+        |> assign(:offers, Enum.map(offers, &enrich_with_purchase_price/1))
         |> assign(:offers_error, nil)
+        |> assign(:confirming, nil)
 
       {:error, reason} ->
         Logger.warning("ReportLive: no se pudieron cargar las ofertas: #{inspect(reason)}")
 
-        assign(socket, :offers, [])
+        socket
+        |> assign(:offers, [])
         |> assign(:offers_error, reason)
+        |> assign(:confirming, nil)
     end
   end
 
@@ -232,6 +250,10 @@ defmodule MisterWeb.ReportLive do
 
   @doc "Texto sin el emoji inicial (el icono ya marca el tipo o la severidad)."
   def plain_text(text), do: String.replace(text, ~r/^[^\p{L}\p{N}]+/u, "")
+
+  @doc "Etiqueta compacta de una tarea: el jugador, o la descripción si no lo hay."
+  def action_label(%{player_name: name}) when is_binary(name), do: name
+  def action_label(action), do: plain_text(action.description)
 
   @doc "Borde del rango de reventa (con respaldo en la proyección esperada)."
   def resale_edge(rec, edge) do

@@ -453,7 +453,9 @@ Así un 5% sobre un jugador caro cuenta si deja dinero relevante, aunque no lleg
 
 Cada fichaje con margen a precio de mercado (`expected_resale > price`) lleva además un **deslizador de puja** (`ReportLive.bid_slider` + hook colocado `.BidSlider`): mueve el importe entre el precio de mercado y la reventa esperada y la ganancia (`reventa − puja`) se recalcula en el cliente, sin ida y vuelta al servidor. Sirve para ver que un jugador puede salir a cuentas comprado a precio de mercado aunque no al alza que hace falta para ganar la puja.
 
-Las **filas de jugador están destiladas**: la cara de la fila muestra la decisión (ganancia + puja sugerida, u oferta esperada) en una sola línea, y la banda de reventa y el deslizador viven dentro de un `<details>` "ajustar puja" (progressive disclosure). El checklist muestra una línea por acción (icono + descripción) sin repetir el tipo, y el rango de venta se colapsa a "oferta esperada (95–105%)".
+Las **filas de jugador están destiladas**: la cara de la fila muestra la decisión (ganancia + puja sugerida, u oferta esperada) en una sola línea, y la banda de reventa y el deslizador viven dentro de un `<details>` "ajustar puja" (progressive disclosure). El checklist muestra una línea por acción (icono + jugador + importe, con `report_actions.player_name`) sin repetir el tipo, y el rango de venta se colapsa a "oferta esperada (95–105%)". Hay una **leyenda** `<details>` que explica clausulazo, ratio, banca/usuario, banda, ganancia y puja, y una **navegación** con contadores a cada sección.
+
+**Aceptar oferta** es irreversible, así que pide una segunda pulsación de confirmación ("Confirmar venta por X €") con opción de cancelar; el estado se limpia al recargar ofertas.
 
 Las ventas se cruzan con `best_lineup`: un jugador **en venta que es titular** en el mejor once deja de ser "vender" (`verdict: "keep"`), genera una acción `unsell` ("retirar de la venta"), dispara una alerta y fuerza el consejo de cualquier oferta recibida a *rechazar*.
 

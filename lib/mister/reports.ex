@@ -329,6 +329,7 @@ defmodule Mister.Reports do
         %{
           kind: "clause",
           mister_id: target.player_id,
+          player_name: target.name,
           description:
             "⚡ Clausulazo: #{target.name} por #{money(target.clause_price)}" <>
               owner_suffix(target.owner_name),
@@ -344,6 +345,7 @@ defmodule Mister.Reports do
         %{
           kind: "buy",
           mister_id: rec.player_id,
+          player_name: rec.name,
           description: "Pujar por #{rec.name}" <> bid_suffix(rec.suggested_bid),
           suggested_amount: rec.suggested_bid
         }
@@ -357,6 +359,7 @@ defmodule Mister.Reports do
         %{
           kind: "sell",
           mister_id: rec.player_id,
+          player_name: rec.name,
           description: "Vender #{rec.name} (oferta esperada #{money(rec.sale_range.expected)})",
           suggested_amount: rec.sale_range.expected
         }
@@ -370,6 +373,7 @@ defmodule Mister.Reports do
         %{
           kind: "unsell",
           mister_id: rec.player_id,
+          player_name: rec.name,
           description: "Retirar de la venta a #{rec.name} (titular en tu mejor once)"
         }
       end)
@@ -381,6 +385,7 @@ defmodule Mister.Reports do
         %{
           kind: "list",
           mister_id: hint.player_id,
+          player_name: hint.name,
           description: "Poner en venta a #{hint.name} (#{hint.reason})",
           suggested_amount: hint.sale_range && hint.sale_range.expected
         }

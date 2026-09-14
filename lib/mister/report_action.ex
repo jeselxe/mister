@@ -10,6 +10,7 @@ defmodule Mister.ReportAction do
     belongs_to :daily_report, Mister.DailyReport
     field :kind, :string
     belongs_to :player, Mister.Player
+    field :player_name, :string
     field :description, :string
     field :suggested_amount, :integer
     field :status, :string, default: "pending"
@@ -19,7 +20,15 @@ defmodule Mister.ReportAction do
 
   def changeset(action, attrs) do
     action
-    |> cast(attrs, [:daily_report_id, :kind, :player_id, :description, :suggested_amount, :status])
+    |> cast(attrs, [
+      :daily_report_id,
+      :kind,
+      :player_id,
+      :player_name,
+      :description,
+      :suggested_amount,
+      :status
+    ])
     |> validate_required([:daily_report_id, :kind, :description])
     |> validate_inclusion(:kind, ["buy", "sell", "unsell", "list", "clause", "lineup_change"])
     |> validate_inclusion(:status, ["pending", "done", "dismissed"])

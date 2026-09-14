@@ -43,4 +43,6 @@
 - [x] Clausulazos de **todas las plantillas rivales** vía `/standings` + `/ajax/sw/users` (`data.team_now`), no solo de `/market`; con filtro de rendimiento y tope
 - [x] Deslizador de puja por jugador (hook colocado `.BidSlider`) para ver la ganancia (`reventa esperada − puja`) según lo que pujes, incluso a precio de mercado
 - [x] Filas de jugador destiladas: decisión en una línea, deslizador y banda de reventa detrás de un `<details>`, checklist de una línea y rango de venta colapsado
+- [x] Endurecido: confirmación en dos pasos para aceptar oferta (irreversible), leyenda de términos y navegación con contadores
+- [x] Checklist compacto por jugador (`report_actions.player_name`, migración) en vez de repetir la descripción de cada sección
 - [x] Tests de la vista (12), tests unitarios de `Valuation`, `ClauseDetector`, `Reports`, `StandingsParser` y `Rivals`, y `mix precommit` limpio

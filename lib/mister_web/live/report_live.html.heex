@@ -92,6 +92,98 @@
         </div>
       </section>
 
+      <%!-- Leyenda: los números del informe, en lenguaje llano --%>
+      <details
+        id="report-legend"
+        class="rounded-xl bg-slate-50 px-4 py-2.5 text-xs text-slate-600 ring-1 ring-slate-200"
+      >
+        <summary class="cursor-pointer font-semibold text-slate-700">
+          ¿Qué significan los números?
+        </summary>
+        <dl class="mt-2 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+          <div>
+            <dt class="inline font-semibold text-slate-700">Clausulazo</dt>
+            <dd class="inline">
+              pagas la cláusula de un rival y te lo llevas al instante; el % es lo que la cláusula supera su valor de mercado.
+            </dd>
+          </div>
+          <div>
+            <dt class="inline font-semibold text-slate-700">ratio pts/M€</dt>
+            <dd class="inline">
+              puntos de media por millón de cláusula: cuanto más alto, más rinde cada euro.
+            </dd>
+          </div>
+          <div>
+            <dt class="inline font-semibold text-slate-700">banca / usuario</dt>
+            <dd class="inline">
+              si el jugador lo pone en venta la banca (sin dueño) o otro mánager.
+            </dd>
+          </div>
+          <div>
+            <dt class="inline font-semibold text-slate-700">reventa 95–105%</dt>
+            <dd class="inline">
+              al ponerlo en venta, la banca ofrece entre el 95% y el 105% del valor ese día.
+            </dd>
+          </div>
+          <div>
+            <dt class="inline font-semibold text-slate-700">ganancia</dt>
+            <dd class="inline">
+              reventa esperada menos lo que pagas (la puja, o el precio de mercado si solo sigues).
+            </dd>
+          </div>
+          <div>
+            <dt class="inline font-semibold text-slate-700">pujar hasta</dt>
+            <dd class="inline">
+              máximo sugerido: precio + 5%, sin pasar de la reventa esperada ni de tu tope de liga.
+            </dd>
+          </div>
+        </dl>
+      </details>
+
+      <%!-- Accesos directos a cada sección --%>
+      <nav id="report-nav" class="flex flex-wrap gap-2 text-xs font-semibold">
+        <a
+          href="#clauses"
+          class="rounded-full bg-white px-3 py-1 text-slate-600 ring-1 ring-slate-200 transition hover:text-slate-900 hover:ring-slate-300"
+        >
+          Clausulazos
+          <span class="text-slate-500">{length(List.wrap(@report.clause_targets))}</span>
+        </a>
+        <a
+          href="#buy-recommendations"
+          class="rounded-full bg-white px-3 py-1 text-slate-600 ring-1 ring-slate-200 transition hover:text-slate-900 hover:ring-slate-300"
+        >
+          Fichajes
+          <span class="text-slate-500">{length(List.wrap(@report.buy_recommendations))}</span>
+        </a>
+        <a
+          href="#best-lineup"
+          class="rounded-full bg-white px-3 py-1 text-slate-600 ring-1 ring-slate-200 transition hover:text-slate-900 hover:ring-slate-300"
+        >
+          Alineación
+        </a>
+        <a
+          href="#checklist"
+          class="rounded-full bg-white px-3 py-1 text-slate-600 ring-1 ring-slate-200 transition hover:text-slate-900 hover:ring-slate-300"
+        >
+          Tareas <span class="text-slate-500">{length(@actions)}</span>
+        </a>
+        <a
+          href="#sell-recommendations"
+          class="rounded-full bg-white px-3 py-1 text-slate-600 ring-1 ring-slate-200 transition hover:text-slate-900 hover:ring-slate-300"
+        >
+          En venta
+          <span class="text-slate-500">{length(List.wrap(@report.sell_recommendations))}</span>
+        </a>
+        <a
+          href="#sell-hints"
+          class="rounded-full bg-white px-3 py-1 text-slate-600 ring-1 ring-slate-200 transition hover:text-slate-900 hover:ring-slate-300"
+        >
+          Poner en venta
+          <span class="text-slate-500">{length(List.wrap(@report.sell_hints))}</span>
+        </a>
+      </nav>
+
       <div class="grid gap-6 lg:grid-cols-5">
         <div class="space-y-6 lg:col-span-3">
           <%!-- Clausulazos --%>
@@ -380,9 +472,15 @@
                     "truncate text-sm font-semibold text-slate-800",
                     done?(action) && "line-through decoration-emerald-600/60"
                   ]}>
-                    {plain_text(action.description)}
+                    {action_label(action)}
                   </p>
                 </div>
+                <span
+                  :if={action.suggested_amount}
+                  class="shrink-0 text-xs font-semibold text-slate-500"
+                >
+                  {money(action.suggested_amount)}
+                </span>
                 <%= if pending?(action) do %>
                   <button
                     type="button"
@@ -622,46 +720,67 @@
                     <p class="mt-0.5 text-[11px] text-orange-700">
                       {elem(advice, 1)}
                     </p>
-                    <div class="mt-2 flex gap-2">
-                      <button
-                        type="button"
-                        phx-click="accept_offer"
-                        phx-value-id_bid={offer.id_bid}
-                        phx-value-amount={offer.bid}
-                        id={"accept-offer-#{offer.id_bid}"}
-                        disabled={rec["in_best_lineup"] || elem(advice, 0) != :accept}
-                        class={[
-                          "rounded-lg px-3 py-1.5 text-xs font-bold transition active:scale-95 phx-click-loading:pointer-events-none phx-click-loading:opacity-60",
-                          if(!rec["in_best_lineup"] && elem(advice, 0) == :accept,
-                            do:
-                              "bg-emerald-600 text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-500",
-                            else: "cursor-not-allowed bg-slate-200 text-slate-500"
-                          )
-                        ]}
-                        title={
-                          if(rec["in_best_lineup"],
-                            do: "Es titular en tu mejor once: retíralo de la venta",
-                            else:
-                              if(elem(advice, 0) == :accept,
-                                do: "Aceptar la oferta en Mister",
-                                else:
-                                  "El consejo actual es no aceptar; habilita solo si cambias de idea"
-                              )
-                          )
-                        }
-                      >
-                        Aceptar oferta
-                      </button>
-                      <button
-                        type="button"
-                        phx-click="keep_on_sale"
-                        phx-value-id_market={offer.id_market}
-                        id={"resale-#{offer.id_market}"}
-                        class="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50 active:scale-95 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
-                        title="Denegar la puja actual y seguir escuchando ofertas"
-                      >
-                        Mantener en venta
-                      </button>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <%= if @confirming == offer.id_bid do %>
+                        <button
+                          type="button"
+                          phx-click="accept_offer"
+                          phx-value-id_bid={offer.id_bid}
+                          phx-value-amount={offer.bid}
+                          id={"confirm-offer-#{offer.id_bid}"}
+                          class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:bg-emerald-500 active:scale-95 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
+                        >
+                          Confirmar venta por {money(offer.bid)}
+                        </button>
+                        <button
+                          type="button"
+                          phx-click="cancel_accept"
+                          id={"cancel-accept-#{offer.id_bid}"}
+                          class="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50 active:scale-95"
+                        >
+                          Cancelar
+                        </button>
+                      <% else %>
+                        <button
+                          type="button"
+                          phx-click="accept_offer"
+                          phx-value-id_bid={offer.id_bid}
+                          phx-value-amount={offer.bid}
+                          id={"accept-offer-#{offer.id_bid}"}
+                          disabled={rec["in_best_lineup"] || elem(advice, 0) != :accept}
+                          class={[
+                            "rounded-lg px-3 py-1.5 text-xs font-bold transition active:scale-95 phx-click-loading:pointer-events-none phx-click-loading:opacity-60",
+                            if(!rec["in_best_lineup"] && elem(advice, 0) == :accept,
+                              do:
+                                "bg-emerald-600 text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-500",
+                              else: "cursor-not-allowed bg-slate-200 text-slate-500"
+                            )
+                          ]}
+                          title={
+                            if(rec["in_best_lineup"],
+                              do: "Es titular en tu mejor once: retíralo de la venta",
+                              else:
+                                if(elem(advice, 0) == :accept,
+                                  do: "Aceptar la oferta en Mister",
+                                  else:
+                                    "El consejo actual es no aceptar; habilita solo si cambias de idea"
+                                )
+                            )
+                          }
+                        >
+                          Aceptar oferta
+                        </button>
+                        <button
+                          type="button"
+                          phx-click="keep_on_sale"
+                          phx-value-id_market={offer.id_market}
+                          id={"resale-#{offer.id_market}"}
+                          class="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50 active:scale-95 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
+                          title="Denegar la puja actual y seguir escuchando ofertas"
+                        >
+                          Mantener en venta
+                        </button>
+                      <% end %>
                     </div>
                   </div>
                 <% end %>
