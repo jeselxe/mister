@@ -201,6 +201,7 @@
                 ]}
               >
                 <div class="flex min-w-0 items-center gap-3">
+                  <.player_side rec={target} />
                   <img
                     src={player_photo_url(target["player_id"])}
                     alt={target["name"]}
@@ -208,19 +209,13 @@
                   />
                   <div>
                     <p class="flex flex-wrap items-center gap-1.5 font-bold text-slate-900">
-                      <span
-                        :if={pos_label(target["position"])}
-                        class={pos_classes(pos_label(target["position"]))}
-                      >
-                        {pos_label(target["position"])}
-                      </span>
                       {target["name"]}
                     </p>
                     <p class="text-xs text-slate-500">
                       {if(target["owner_name"],
                         do: "de " <> target["owner_name"] <> " · ",
                         else: ""
-                      )}{pts(target["total_points"])} pts · media {pts(target["season_avg"])} · ratio {pts(
+                      )}media {pts(target["season_avg"])} · ratio {pts(
                         target["value_per_million"]
                       )} pts/M€
                     </p>
@@ -316,6 +311,7 @@
                 ]}
               >
                 <div class="flex items-center justify-between gap-3">
+                  <.player_side rec={rec} />
                   <img
                     src={player_photo_url(rec["player_id"])}
                     alt={rec["name"]}
@@ -323,12 +319,6 @@
                   />
                   <div class="min-w-0 flex-1">
                     <p class="flex flex-wrap items-center gap-1.5 font-bold text-slate-900">
-                      <span
-                        :if={pos_label(rec["position"])}
-                        class={pos_classes(pos_label(rec["position"]))}
-                      >
-                        {pos_label(rec["position"])}
-                      </span>
                       {rec["name"]}
                       <span
                         class={trend_classes(rec["trend"])}
@@ -362,8 +352,6 @@
                         )})
                       </span>
                       · {money(rec["price"])} ·
-                      <span title={avg_title(rec)}>{pts(rec["total_points"])} pts</span>
-                      ·
                       <span class={growth_classes(rec["growth_7d"])}>
                         7d {signed_pct(rec["growth_7d"]) || "sin datos"}
                       </span>
@@ -399,6 +387,7 @@
                   class="border-b border-slate-200 py-2"
                 >
                   <div class="flex items-center justify-between gap-3">
+                    <.player_side rec={rec} />
                     <img
                       src={player_photo_url(rec["player_id"])}
                       alt={rec["name"]}
@@ -406,19 +395,13 @@
                     />
                     <div class="min-w-0 flex-1">
                       <p class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800">
-                        <span
-                          :if={pos_label(rec["position"])}
-                          class={pos_classes(pos_label(rec["position"]))}
-                        >
-                          {pos_label(rec["position"])}
-                        </span>
                         {rec["name"]}
                         <span class={growth_classes(rec["growth_7d"])}>
                           {signed_pct(rec["growth_7d"]) || "sin datos"} 7d
                         </span>
                       </p>
                       <p class="text-[11px] text-slate-500">
-                        {pts(rec["total_points"])} pts · {money(rec["price"])} ·
+                        {money(rec["price"])} ·
                         <span class={growth_classes(rec["potential_gain_pct"])}>
                           ganancia {signed_money(rec["potential_gain"])}
                         </span>
@@ -523,6 +506,7 @@
                   done_or_dismissed?(@action_map[{"list", hint["player_id"]}]) && "opacity-60"
                 ]}
               >
+                <.player_side rec={hint} />
                 <img
                   src={player_photo_url(hint["player_id"])}
                   alt={hint["name"]}
@@ -530,21 +514,13 @@
                 />
                 <div class="min-w-0 flex-1">
                   <p class="flex flex-wrap items-center gap-1.5 font-bold text-slate-900">
-                    <span
-                      :if={pos_label(hint["position"])}
-                      class={pos_classes(pos_label(hint["position"]))}
-                    >
-                      {pos_label(hint["position"])}
-                    </span>
                     {hint["name"]}
                     <span class={growth_classes(hint["growth_7d"])}>
                       {signed_pct(hint["growth_7d"]) || "sin datos"} 7d
                     </span>
                   </p>
                   <p class="text-xs text-slate-500">
-                    {pts(hint["total_points"])} pts · media {pts(hint["season_avg"])} · valor {money(
-                      hint["market_value"]
-                    )}
+                    media {pts(hint["season_avg"])} · valor {money(hint["market_value"])}
                   </p>
                   <p class="text-[11px] font-semibold text-rose-600">{hint["reason"]}</p>
                 </div>
@@ -614,6 +590,7 @@
                 <% offer = entry.offer %>
                 <% advice = sale_advice(rec, offer) %>
                 <div class="flex items-center gap-3">
+                  <.player_side rec={rec} />
                   <img
                     src={player_photo_url(rec["player_id"])}
                     alt={rec["name"]}
@@ -621,12 +598,6 @@
                   />
                   <div class="min-w-0 flex-1">
                     <p class="flex flex-wrap items-center gap-1.5 font-bold text-slate-900">
-                      <span
-                        :if={pos_label(rec["position"])}
-                        class={pos_classes(pos_label(rec["position"]))}
-                      >
-                        {pos_label(rec["position"])}
-                      </span>
                       {rec["name"]}
                       <span
                         class={trend_classes(rec["trend"])}

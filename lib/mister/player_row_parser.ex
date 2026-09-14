@@ -74,6 +74,7 @@ defmodule Mister.PlayerRowParser do
         player_id: player_id,
         name: name |> String.trim() |> String.replace(~r/\s+/, " "),
         position: position(node),
+        team_logo_url: team_logo_url(node),
         price:
           money(node, [".price", ".player-price"]) ||
             attr_money(node, "data-price") ||
@@ -133,6 +134,22 @@ defmodule Mister.PlayerRowParser do
 
       [] ->
         {:error, :no_name}
+    end
+  end
+
+  # Escudo del club del jugador. En la fila hay dos `.team-logo`: el del club
+  # (dentro de `.icons`) y el del próximo rival (`.rival`), así que se prefiere
+  # el primero.
+  defp team_logo_url(node) do
+    nodes =
+      case Floki.find(node, ".icons .team-logo") do
+        [] -> Floki.find(node, ".team-logo")
+        found -> found
+      end
+
+    case nodes do
+      [el | _] -> List.first(Floki.attribute(el, "src"))
+      [] -> nil
     end
   end
 

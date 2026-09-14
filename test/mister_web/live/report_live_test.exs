@@ -51,7 +51,7 @@ defmodule MisterWeb.ReportLiveTest do
       # clausulazos
       assert has_element?(view, "#clause-2001", "Kylian Mbappé")
       assert has_element?(view, "#clause-2001", "de ElHu$tler")
-      assert has_element?(view, "#clause-2001", "21 pts")
+      assert has_element?(view, "#clause-2001 [title='puntos totales']", "21")
       assert has_element?(view, "#clause-2001", "DC")
       assert has_element?(view, "#clause-2001", "valor 15.000.000 €")
       assert has_element?(view, "#clause-2001", "+33% sobre valor")
@@ -97,7 +97,8 @@ defmodule MisterWeb.ReportLiveTest do
       # puja recomendada con importe
       assert has_element?(view, "#buy-3001", "pujar hasta")
       assert has_element?(view, "#buy-3001", "12.5%")
-      assert has_element?(view, "#buy-3001", "30 pts")
+      assert has_element?(view, "#buy-3001 [title='puntos totales']", "30")
+      assert has_element?(view, "#buy-3001", "DC")
       assert has_element?(view, "#buy-3001", "reventa esperada 8.740.000 €–9.660.000 €")
 
       # seguimiento sin puja

@@ -76,6 +76,7 @@ defmodule Mister.ClauseDetector do
           owner_id: owner["id"] || owner[:id],
           owner_name: owner["name"] || owner[:name],
           position: player["position"] || detail["position"],
+          team_logo_url: get_in(player, ["team", "logoUrl"]) || player["teamLogoUrl"],
           clause_price: clause_price,
           player_value: player_value,
           clause_premium_pct: premium_pct(clause_price, player_value),

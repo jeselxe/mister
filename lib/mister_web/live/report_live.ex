@@ -273,9 +273,6 @@ defmodule MisterWeb.ReportLive do
   def pts(n) when is_integer(n), do: Integer.to_string(n)
   def pts(other), do: to_string(other)
 
-  @doc "Tooltip de media de puntos (evita comillas anidadas en HEEx)."
-  def avg_title(rec), do: "media " <> pts(rec["season_avg"]) <> " pts"
-
   @doc "Texto sin el emoji inicial (el icono ya marca el tipo o la severidad)."
   def plain_text(text), do: String.replace(text, ~r/^[^\p{L}\p{N}]+/u, "")
 
@@ -387,8 +384,25 @@ defmodule MisterWeb.ReportLive do
 
   def pos_label(_), do: nil
 
-  def pos_classes(pos_label) when pos_label in ["PT", "DF", "MD", "DC"],
-    do: "rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-white"
+  def pos_classes("PT"),
+    do:
+      "rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-amber-800 ring-1 ring-amber-300"
+
+  def pos_classes("DF"),
+    do:
+      "rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-sky-800 ring-1 ring-sky-300"
+
+  def pos_classes("MD"),
+    do:
+      "rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-emerald-800 ring-1 ring-emerald-300"
+
+  def pos_classes("DC"),
+    do:
+      "rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-rose-800 ring-1 ring-rose-300"
+
+  def pos_classes(_),
+    do:
+      "rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-slate-600 ring-1 ring-slate-200"
 
   def kind_icon("clause"), do: "hero-bolt"
   def kind_icon("buy"), do: "hero-shopping-bag"
@@ -401,6 +415,32 @@ defmodule MisterWeb.ReportLive do
   @doc "¿La recomendación de fichaje conlleva una puja con importe?"
   def bid?(%{"recommendation" => "bid"}), do: true
   def bid?(_), do: false
+
+  attr :rec, :map, required: true
+
+  @doc """
+  Columna izquierda de una fila de jugador: escudo del club, posición (con
+  color por demarcación) y puntos totales.
+  """
+  def player_side(assigns) do
+    ~H"""
+    <div class="flex w-9 shrink-0 flex-col items-center gap-0.5">
+      <img
+        :if={@rec["team_logo_url"]}
+        src={@rec["team_logo_url"]}
+        alt=""
+        loading="lazy"
+        class="h-5 w-5 object-contain"
+      />
+      <span :if={pos_label(@rec["position"])} class={pos_classes(pos_label(@rec["position"]))}>
+        {pos_label(@rec["position"])}
+      </span>
+      <span class="text-[11px] font-black tabular-nums text-slate-700" title="puntos totales">
+        {pts(@rec["total_points"])}
+      </span>
+    </div>
+    """
+  end
 
   @doc "Porcentaje con signo, p. ej. `+6,3%` / `-2,1%`."
   def signed_pct(nil), do: nil

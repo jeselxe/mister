@@ -50,4 +50,5 @@
 - [x] Filtro de fichajes por origen: "Solo banca" (por defecto) / "Todos", para no pujar por listados de otros usuarios
 - [x] Ensamblado puro en `Mister.Analysis.build/1` (sin HTTP ni BD) y worker reducido a adaptador; tests con fixtures
 - [x] Informe separado: `Mister.Report` (puro, `Input` + `build/1` + `actions/1`) y `Mister.Reports` (persistencia); `Mister.Format.money/1` único
+- [x] Filas de jugador con columna izquierda: escudo del club, posición con color (PT amarillo, DF azul, MD verde, DC rojo) y puntos totales
 - [x] Tests de la vista (12), tests unitarios de `Valuation`, `ClauseDetector`, `Reports`, `StandingsParser` y `Rivals`, y `mix precommit` limpio
