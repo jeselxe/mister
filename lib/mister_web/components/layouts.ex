@@ -35,7 +35,7 @@ defmodule MisterWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <main class="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <main class="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div class="mx-auto w-full space-y-4">
         {render_slot(@inner_block)}
       </div>
