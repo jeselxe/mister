@@ -64,8 +64,8 @@ defmodule MisterWeb.ReportLiveTest do
 
       # checklist
       [clause_action | rest] = Enum.sort_by(report.actions, & &1.id)
-      assert has_element?(view, "#action-#{clause_action.id}", "Kylian Mbappé")
-      assert Enum.any?(rest, &has_element?(view, "#action-#{&1.id}"))
+      assert has_element?(view, "#clause-2001 #complete-action-#{clause_action.id}")
+      assert Enum.all?(rest, &has_element?(view, "#complete-action-#{&1.id}"))
     end
 
     test "marca una tarea como hecha y persiste el estado", %{conn: conn, report: report} do
@@ -119,7 +119,7 @@ defmodule MisterWeb.ReportLiveTest do
 
       unsell = Enum.find(report.actions, &(&1.kind == "unsell"))
       assert unsell
-      assert has_element?(view, "#action-#{unsell.id}", "Koke")
+      assert has_element?(view, "#sale-4002 #complete-action-#{unsell.id}")
     end
 
     test "muestra a quién poner en venta", %{conn: conn, report: report} do
@@ -133,7 +133,7 @@ defmodule MisterWeb.ReportLiveTest do
 
       list_action = Enum.find(report.actions, &(&1.kind == "list"))
       assert list_action
-      assert has_element?(view, "#action-#{list_action.id}", "N. Serrano")
+      assert has_element?(view, "#sell-hint-5001 #complete-action-#{list_action.id}")
     end
 
     test "se actualiza solo cuando llega un nuevo informe por PubSub", %{

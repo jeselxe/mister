@@ -36,6 +36,7 @@ defmodule MisterWeb.ReportLive do
       |> assign(:current_scope, nil)
       |> assign(:report, report)
       |> assign(:actions, actions_of(report))
+      |> assign(:action_map, action_map(actions_of(report)))
       |> assign(:offers, [])
       |> assign(:offers_error, nil)
       |> assign(:confirming, nil)
@@ -52,11 +53,14 @@ defmodule MisterWeb.ReportLive do
 
   @impl true
   def handle_info({:new_report, %Mister.DailyReport{} = report}, socket) do
+    actions = actions_of(report)
+
     {:noreply,
      socket
      |> put_flash(:info, "Nuevo informe disponible ✅")
      |> assign(:report, report)
-     |> assign(:actions, actions_of(report))}
+     |> assign(:actions, actions)
+     |> assign(:action_map, action_map(actions))}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
@@ -91,6 +95,12 @@ defmodule MisterWeb.ReportLive do
     if socket.assigns[:confirming] == id_bid do
       case Mister.Client.accept_offer(id_bid, String.to_integer(amount)) do
         {:ok, :accepted} ->
+          socket =
+            case Enum.find(socket.assigns.offers, &(&1.id_bid == id_bid)) do
+              nil -> socket
+              offer -> complete_sale_action(socket, offer.player_id)
+            end
+
           {:noreply,
            socket
            |> put_flash(:info, "Oferta aceptada ✅")
@@ -175,6 +185,23 @@ defmodule MisterWeb.ReportLive do
   defp actions_of(nil), do: []
   defp actions_of(%{actions: actions}), do: actions || []
 
+  # Índice {kind, mister_id} => acción, para pintar los controles dentro de la
+  # fila de su sección (el checklist ya no existe como sección aparte).
+  defp action_map(actions) do
+    Map.new(actions, fn action -> {{action.kind, action.mister_id}, action} end)
+  end
+
+  # Marca como hecha la acción "sell" del jugador cuya oferta se acaba de
+  # aceptar desde el informe: la venta ya está hecha en Mister.
+  defp complete_sale_action(socket, mister_id) do
+    map = socket.assigns.action_map
+
+    case Map.get(map, {"sell", mister_id}) do
+      nil -> socket
+      action -> update_action_status(socket, action.id, "done")
+    end
+  end
+
   defp update_action_status(socket, id, status) do
     action = Repo.get!(Mister.ReportAction, id)
     action = action |> Mister.ReportAction.changeset(%{status: status}) |> Repo.update!()
@@ -184,7 +211,9 @@ defmodule MisterWeb.ReportLive do
         if a.id == action.id, do: %{a | status: action.status}, else: a
       end)
 
-    assign(socket, :actions, actions)
+    socket
+    |> assign(:actions, actions)
+    |> assign(:action_map, action_map(actions))
   end
 
   def pending?(%{status: "pending"}), do: true
@@ -251,9 +280,74 @@ defmodule MisterWeb.ReportLive do
   @doc "Texto sin el emoji inicial (el icono ya marca el tipo o la severidad)."
   def plain_text(text), do: String.replace(text, ~r/^[^\p{L}\p{N}]+/u, "")
 
-  @doc "Etiqueta compacta de una tarea: el jugador, o la descripción si no lo hay."
-  def action_label(%{player_name: name}) when is_binary(name), do: name
-  def action_label(action), do: plain_text(action.description)
+  def done_or_dismissed?(nil), do: false
+  def done_or_dismissed?(action), do: action.status in ["done", "dismissed"]
+
+  @doc "Acción de venta de una fila (kind sell o unsell según el veredicto)."
+  def sale_action(action_map, rec) do
+    kind = if rec["verdict"] == "keep", do: "unsell", else: "sell"
+    Map.get(action_map, {kind, rec["player_id"]})
+  end
+
+  attr :action, :map, default: nil
+
+  @doc "Controles de la tarea (hecha / descartar / deshacer) dentro de su propia fila."
+  def action_controls(%{action: nil} = assigns), do: ~H""
+
+  def action_controls(assigns) do
+    ~H"""
+    <div class="flex shrink-0 items-center gap-1">
+      <%= cond do %>
+        <% done?(@action) -> %>
+          <span
+            class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"
+            title="Hecha"
+          >
+            <.icon name="hero-check" class="h-4 w-4" />
+          </span>
+        <% @action.status == "dismissed" -> %>
+          <span
+            class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-500"
+            title="Descartada"
+          >
+            <.icon name="hero-x-mark" class="h-4 w-4" />
+          </span>
+        <% true -> %>
+          <button
+            type="button"
+            phx-click="complete_action"
+            phx-value-id={@action.id}
+            id={"complete-action-#{@action.id}"}
+            title="Marcar como hecha"
+            class="flex h-7 w-7 items-center justify-center rounded-full text-emerald-600 transition hover:bg-emerald-100 active:scale-90 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
+          >
+            <.icon name="hero-check" class="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            phx-click="dismiss_action"
+            phx-value-id={@action.id}
+            id={"dismiss-action-#{@action.id}"}
+            title="Descartar"
+            class="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 active:scale-90 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
+          >
+            <.icon name="hero-x-mark" class="h-4 w-4" />
+          </button>
+      <% end %>
+      <button
+        :if={done?(@action) or @action.status == "dismissed"}
+        type="button"
+        phx-click="undo_action"
+        phx-value-id={@action.id}
+        id={"undo-action-#{@action.id}"}
+        title="Deshacer"
+        class="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 active:scale-90 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
+      >
+        <.icon name="hero-arrow-path" class="h-4 w-4" />
+      </button>
+    </div>
+    """
+  end
 
   @doc "Borde del rango de reventa (con respaldo en la proyección esperada)."
   def resale_edge(rec, edge) do

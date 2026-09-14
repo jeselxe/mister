@@ -163,12 +163,6 @@
           Alineación
         </a>
         <a
-          href="#checklist"
-          class="rounded-full bg-white px-3 py-1 text-slate-600 ring-1 ring-slate-200 transition hover:text-slate-900 hover:ring-slate-300"
-        >
-          Tareas <span class="text-slate-500">{length(@actions)}</span>
-        </a>
-        <a
           href="#sell-recommendations"
           class="rounded-full bg-white px-3 py-1 text-slate-600 ring-1 ring-slate-200 transition hover:text-slate-900 hover:ring-slate-300"
         >
@@ -195,7 +189,10 @@
               <li
                 :for={target <- List.wrap(@report.clause_targets)}
                 id={"clause-#{target["player_id"]}"}
-                class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                class={[
+                  "flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0",
+                  done_or_dismissed?(@action_map[{"clause", target["player_id"]}]) && "opacity-60"
+                ]}
               >
                 <div class="flex min-w-0 items-center gap-3">
                   <img
@@ -232,9 +229,12 @@
                     </p>
                   </div>
                 </div>
-                <span class="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-black text-amber-800 ring-1 ring-amber-300">
-                  <.icon name="hero-bolt" class="h-4 w-4" /> {money(target["clause_price"])}
-                </span>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-black text-amber-800 ring-1 ring-amber-300">
+                    <.icon name="hero-bolt" class="h-4 w-4" /> {money(target["clause_price"])}
+                  </span>
+                  <.action_controls action={@action_map[{"clause", target["player_id"]}]} />
+                </div>
               </li>
             </ul>
             <p
@@ -269,7 +269,10 @@
               <li
                 :for={rec <- bid_buys}
                 id={"buy-#{rec["player_id"]}"}
-                class="py-2.5 first:pt-0 last:pb-0"
+                class={[
+                  "py-2.5 first:pt-0 last:pb-0",
+                  done_or_dismissed?(@action_map[{"buy", rec["player_id"]}]) && "opacity-60"
+                ]}
               >
                 <div class="flex items-center justify-between gap-3">
                   <img
@@ -325,9 +328,12 @@
                       </span>
                     </p>
                   </div>
-                  <span class="shrink-0 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 ring-1 ring-sky-200">
-                    pujar hasta {money(rec["suggested_bid"])}
-                  </span>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <span class="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 ring-1 ring-sky-200">
+                      pujar hasta {money(rec["suggested_bid"])}
+                    </span>
+                    <.action_controls action={@action_map[{"buy", rec["player_id"]}]} />
+                  </div>
                 </div>
                 <.bid_slider :if={slider?(rec)} id={"bid-slider-#{rec["player_id"]}"} rec={rec} />
               </li>
@@ -421,9 +427,12 @@
             id="best-lineup"
             class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
           >
-            <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
-              <.icon name="hero-flag" class="h-5 w-5 text-emerald-600" /> Alineación óptima
-            </h2>
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+                <.icon name="hero-flag" class="h-5 w-5 text-emerald-600" /> Alineación óptima
+              </h2>
+              <.action_controls action={@action_map[{"lineup_change", nil}]} />
+            </div>
             <div class="mt-3">
               <FormationPitch.pitch id="formation-pitch" lineup={@report.best_lineup} />
             </div>
@@ -447,84 +456,6 @@
             </div>
           </section>
 
-          <%!-- Checklist del día --%>
-          <section id="checklist" class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
-              <.icon name="hero-check-circle" class="h-5 w-5 text-emerald-600" /> Tareas del día
-            </h2>
-            <ul class="mt-3 space-y-2">
-              <li
-                :for={action <- @actions}
-                id={"action-#{action.id}"}
-                class={action_classes(action)}
-              >
-                <span class={[
-                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                  if(action.kind == "clause",
-                    do: "bg-amber-500/15 text-amber-600",
-                    else: "bg-slate-100 text-slate-600"
-                  )
-                ]}>
-                  <.icon name={kind_icon(action.kind)} class="h-4 w-4" />
-                </span>
-                <div class="min-w-0 flex-1">
-                  <p class={[
-                    "truncate text-sm font-semibold text-slate-800",
-                    done?(action) && "line-through decoration-emerald-600/60"
-                  ]}>
-                    {action_label(action)}
-                  </p>
-                </div>
-                <span
-                  :if={action.suggested_amount}
-                  class="shrink-0 text-xs font-semibold text-slate-500"
-                >
-                  {money(action.suggested_amount)}
-                </span>
-                <%= if pending?(action) do %>
-                  <button
-                    type="button"
-                    phx-click="complete_action"
-                    phx-value-id={action.id}
-                    id={"complete-action-#{action.id}"}
-                    title="Marcar como hecha"
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-emerald-600 transition hover:bg-emerald-100 active:scale-90 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
-                  >
-                    <.icon name="hero-check" class="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
-                    phx-click="dismiss_action"
-                    phx-value-id={action.id}
-                    id={"dismiss-action-#{action.id}"}
-                    title="Descartar"
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 active:scale-90 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
-                  >
-                    <.icon name="hero-x-mark" class="h-5 w-5" />
-                  </button>
-                <% else %>
-                  <button
-                    type="button"
-                    phx-click="undo_action"
-                    phx-value-id={action.id}
-                    id={"undo-action-#{action.id}"}
-                    title="Deshacer"
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 active:scale-90 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
-                  >
-                    <.icon name="hero-arrow-path" class="h-4 w-4" />
-                  </button>
-                <% end %>
-              </li>
-            </ul>
-            <p
-              :if={@actions == []}
-              class="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"
-              id="checklist-empty"
-            >
-              Sin tareas pendientes para hoy.
-            </p>
-          </section>
-
           <%!-- Pistas de a quién poner en venta --%>
           <% slots = (@report.budget_summary || %{})["sale_slots"] || %{} %>
           <section
@@ -546,7 +477,10 @@
               <li
                 :for={hint <- List.wrap(@report.sell_hints)}
                 id={"sell-hint-#{hint["player_id"]}"}
-                class="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                class={[
+                  "flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0",
+                  done_or_dismissed?(@action_map[{"list", hint["player_id"]}]) && "opacity-60"
+                ]}
               >
                 <img
                   src={player_photo_url(hint["player_id"])}
@@ -573,13 +507,16 @@
                   </p>
                   <p class="text-[11px] font-semibold text-rose-600">{hint["reason"]}</p>
                 </div>
-                <span
-                  :if={get_in(hint, ["sale_range", "expected"])}
-                  class="shrink-0 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700 ring-1 ring-violet-200"
-                  title="Oferta esperada de la banca al ponerlo en venta"
-                >
-                  ~ {money(get_in(hint, ["sale_range", "expected"]))}
-                </span>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span
+                    :if={get_in(hint, ["sale_range", "expected"])}
+                    class="rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700 ring-1 ring-violet-200"
+                    title="Oferta esperada de la banca al ponerlo en venta"
+                  >
+                    ~ {money(get_in(hint, ["sale_range", "expected"]))}
+                  </span>
+                  <.action_controls action={@action_map[{"list", hint["player_id"]}]} />
+                </div>
               </li>
             </ul>
             <p
@@ -627,7 +564,10 @@
               <li
                 :for={entry <- sales_with_offers(@report, @offers)}
                 id={"sale-#{entry.rec["player_id"]}"}
-                class="py-3 first:pt-0 last:pb-0"
+                class={[
+                  "py-3 first:pt-0 last:pb-0",
+                  done_or_dismissed?(sale_action(@action_map, entry.rec)) && "opacity-60"
+                ]}
               >
                 <% rec = entry.rec %>
                 <% offer = entry.offer %>
@@ -677,6 +617,7 @@
                       sin ofertas
                     </span>
                   <% end %>
+                  <.action_controls action={sale_action(@action_map, rec)} />
                 </div>
 
                 <p

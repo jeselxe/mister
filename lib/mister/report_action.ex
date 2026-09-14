@@ -11,6 +11,7 @@ defmodule Mister.ReportAction do
     field :kind, :string
     belongs_to :player, Mister.Player
     field :player_name, :string
+    field :mister_id, :integer
     field :description, :string
     field :suggested_amount, :integer
     field :status, :string, default: "pending"
@@ -25,6 +26,7 @@ defmodule Mister.ReportAction do
       :kind,
       :player_id,
       :player_name,
+      :mister_id,
       :description,
       :suggested_amount,
       :status

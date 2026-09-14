@@ -453,7 +453,9 @@ Así un 5% sobre un jugador caro cuenta si deja dinero relevante, aunque no lleg
 
 Cada fichaje con margen a precio de mercado (`expected_resale > price`) lleva además un **deslizador de puja** (`ReportLive.bid_slider` + hook colocado `.BidSlider`): mueve el importe entre el precio de mercado y la reventa esperada y la ganancia (`reventa − puja`) se recalcula en el cliente, sin ida y vuelta al servidor. Sirve para ver que un jugador puede salir a cuentas comprado a precio de mercado aunque no al alza que hace falta para ganar la puja.
 
-Las **filas de jugador están destiladas**: la cara de la fila muestra la decisión (ganancia + puja sugerida, u oferta esperada) en una sola línea, y la banda de reventa y el deslizador viven dentro de un `<details>` "ajustar puja" (progressive disclosure). El checklist muestra una línea por acción (icono + jugador + importe, con `report_actions.player_name`) sin repetir el tipo, y el rango de venta se colapsa a "oferta esperada (95–105%)". Hay una **leyenda** `<details>` que explica clausulazo, ratio, banca/usuario, banda, ganancia y puja, y una **navegación** con contadores a cada sección.
+Las **filas de jugador están destiladas**: la cara de la fila muestra la decisión (ganancia + puja sugerida, u oferta esperada) en una sola línea, y la banda de reventa y el deslizador viven dentro de un `<details>` "ajustar puja" (progressive disclosure). El rango de venta se colapsa a "oferta esperada (95–105%)". Hay una **leyenda** `<details>` que explica clausulazo, ratio, banca/usuario, banda, ganancia y puja, y una **navegación** con contadores a cada sección.
+
+Las tareas (`report_actions`) **ya no son una sección aparte**: cada fila de su sección (clausulazo, puja, puesta en venta, oferta y alineación) lleva sus propios controles hecha/descartar/deshacer, unidos por `{kind, mister_id}`. **Aceptar una oferta desde el informe marca sola la venta como hecha**; el resto se marca a mano.
 
 **Aceptar oferta** es irreversible, así que pide una segunda pulsación de confirmación ("Confirmar venta por X €") con opción de cancelar; el estado se limpia al recargar ofertas.
 

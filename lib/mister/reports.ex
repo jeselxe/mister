@@ -104,7 +104,6 @@ defmodule Mister.Reports do
           attrs
           |> Map.put(:daily_report_id, report.id)
           |> Map.put(:player_id, player_db_id(attrs[:mister_id]))
-          |> Map.delete(:mister_id)
 
         status =
           Map.get(previous_statuses, {attrs.kind, attrs.player_id, attrs.description}, "pending")
