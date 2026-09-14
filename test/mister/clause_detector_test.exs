@@ -96,20 +96,24 @@ defmodule Mister.ClauseDetectorTest do
     assert names == ["Rentable", "Caro"]
   end
 
-  test "limita a las mejores oportunidades" do
+  test "el tope se aplica tras ordenar: devuelve las mejores por ratio" do
+    # Misma cláusula (1M) y medias 1..20 -> ratio = media. Con tope 3 deben
+    # salir las tres mejores, no tres cualesquiera.
     candidates =
-      for id <- 1..20 do
+      for avg <- 1..20 do
         %{
           "player" => %{
-            "id" => id,
-            "name" => "Bueno #{id}",
-            "avg" => 5.0,
+            "id" => avg,
+            "name" => "J#{avg}",
+            "avg" => avg * 1.0,
             "owner" => %{"id" => 5},
             "clause" => %{"value" => 1_000_000}
           }
         }
       end
 
-    assert length(ClauseDetector.find_opportunities(candidates, 20_000_000, max_targets: 3)) == 3
+    targets = ClauseDetector.find_opportunities(candidates, 20_000_000, max_targets: 3)
+
+    assert Enum.map(targets, & &1.player_id) == [20, 19, 18]
   end
 end

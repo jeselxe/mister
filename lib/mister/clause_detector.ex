@@ -26,12 +26,13 @@ defmodule Mister.ClauseDetector do
   cláusula) y un `score` simple (`avg * 10 - clause/1M`) pensado como punto de
   partida para calibrar con datos reales de temporada.
 
-  Recorrer todas las plantillas rivales deja cientos de cláusulas pagables, así
-  que se aplica un mínimo de calidad (`:min_value_per_million`, por defecto 1.0
-  pts/M€) y se limita a las mejores `:max_targets` (12 por defecto).
-
-  El orden es por **rentabilidad**: `value_per_million` (puntos por millón de
-  cláusula) descendente, con el `score` como desempate.
+  Recorrer todas las plantillas rivales deja cientos de cláusulas pagables. La
+  tubería, en orden: descartar sin dueño o sin cláusula, exigir
+  `cláusula <= saldo real`, aplicar el mínimo de calidad
+  (`:min_value_per_million`, 1.0 pts/M€ por defecto), **ordenar por
+  rentabilidad** (`value_per_million` descendente, `score` como desempate) y
+  **quedarse con las `:max_targets` mejores** (12 por defecto). El tope se
+  aplica **después** de ordenar, así que nunca deja fuera a una mejor.
   """
   def find_opportunities(player_details, real_balance, opts \\ []) do
     min_ratio = Keyword.get(opts, :min_value_per_million, @min_value_per_million)
