@@ -39,7 +39,7 @@ defmodule MisterWeb.Components.FormationPitch do
       )
 
     ~H"""
-    <div id={@id} class="overflow-hidden rounded-2xl shadow-lg ring-1 ring-black/20">
+    <div id={@id} class="overflow-hidden rounded-2xl shadow-lg">
       <div
         class="relative bg-emerald-700 px-4 pb-4 pt-5"
         style="background-image: repeating-linear-gradient(90deg, rgb(4 120/0.35) 0 3rem, transparent 3rem 6rem)"

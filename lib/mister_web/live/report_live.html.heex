@@ -38,7 +38,7 @@
         <div
           :for={alert <- @report.alerts || []}
           class={[
-            "flex items-start gap-3 rounded-xl border px-4 py-3 text-sm font-medium shadow-sm",
+            "flex items-start gap-3 rounded-xl border px-4 py-3 text-sm font-medium",
             if(red_alert?(alert),
               do: "border-red-300 bg-red-50 text-red-800",
               else: "border-amber-300 bg-amber-50 text-amber-900"
@@ -95,10 +95,14 @@
       <%!-- Leyenda: los números del informe, en lenguaje llano --%>
       <details
         id="report-legend"
-        class="border-t border-slate-200 pt-4 text-xs text-slate-600"
+        class="group border-t border-slate-200 pt-4 text-xs text-slate-600"
       >
-        <summary class="cursor-pointer font-semibold text-slate-700">
+        <summary class="inline-flex cursor-pointer list-none items-center gap-1 font-semibold text-slate-700 [&::-webkit-details-marker]:hidden">
           ¿Qué significan los números?
+          <.icon
+            name="hero-chevron-down"
+            class="h-3.5 w-3.5 transition-transform group-open:rotate-180"
+          />
         </summary>
         <dl class="mt-2 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
           <div>
@@ -383,7 +387,7 @@
                         </span>
                       </p>
                     </div>
-                    <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">
                       sin puja
                     </span>
                   </div>
@@ -466,7 +470,7 @@
               <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
                 <.icon name="hero-tag" class="h-5 w-5 text-rose-500" /> Poner en venta
               </h2>
-              <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
+              <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-600">
                 {slots["listed"] || 0}/{slots["max"] || 5} en venta
               </span>
             </div>
@@ -613,7 +617,7 @@
                       {offer_advice_label(advice)}
                     </span>
                   <% else %>
-                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 ring-1 ring-slate-200">
+                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
                       sin ofertas
                     </span>
                   <% end %>
