@@ -387,6 +387,15 @@ end
 
 ## 11. Job diario (Oban)
 
+`Mister.Workers.DailyAnalysis` es el **adaptador**: descarga mercado, plantilla,
+detalles de jugador, saldo y plantillas rivales, guarda el censo diario y
+persiste/emite el informe. El ensamblado es **puro** y vive en
+`Mister.Analysis.build/1` (`lib/mister/analysis.ex`): recibe los datos ya
+descargados y devuelve el mapa del informe, así que se testea con fixtures sin
+HTTP ni base de datos. El worker solo conserva la descarga (con
+`Task.async_stream` para los detalles), el fallback de saldo y el
+`Reports.persist!` + `PubSub`. El código de abajo es ilustrativo del flujo.
+
 ```elixir
 defmodule Mister.Workers.DailyAnalysis do
   use Oban.Worker, queue: :mister, max_attempts: 3

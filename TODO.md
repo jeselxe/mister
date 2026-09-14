@@ -48,4 +48,5 @@
 - [x] Tareas dentro de cada sección (`report_actions.mister_id`): controles hecha/descartar/deshacer en la propia fila; aceptar una oferta marca sola la venta como hecha
 - [x] Capitán con multiplicador por valor de mercado (x3 <5M, x2 5-10M, x1.5 >=10M); se elige por bonus `puntos x (mult - 1)`, no por puntos
 - [x] Filtro de fichajes por origen: "Solo banca" (por defecto) / "Todos", para no pujar por listados de otros usuarios
+- [x] Ensamblado puro en `Mister.Analysis.build/1` (sin HTTP ni BD) y worker reducido a adaptador; tests con fixtures
 - [x] Tests de la vista (12), tests unitarios de `Valuation`, `ClauseDetector`, `Reports`, `StandingsParser` y `Rivals`, y `mix precommit` limpio
