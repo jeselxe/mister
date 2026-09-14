@@ -227,6 +227,12 @@ defmodule MisterWeb.ReportLive do
   def pts(n) when is_integer(n), do: Integer.to_string(n)
   def pts(other), do: to_string(other)
 
+  @doc "Tooltip de media de puntos (evita comillas anidadas en HEEx)."
+  def avg_title(rec), do: "media " <> pts(rec["season_avg"]) <> " pts"
+
+  @doc "Texto sin el emoji inicial (el icono ya marca el tipo o la severidad)."
+  def plain_text(text), do: String.replace(text, ~r/^[^\p{L}\p{N}]+/u, "")
+
   @doc "Borde del rango de reventa (con respaldo en la proyección esperada)."
   def resale_edge(rec, edge) do
     get_in(rec, ["resale_range", edge]) || rec["expected_resale"]
@@ -276,14 +282,6 @@ defmodule MisterWeb.ReportLive do
   def kind_icon("list"), do: "hero-tag"
   def kind_icon("lineup_change"), do: "hero-arrows-right-left"
   def kind_icon(_), do: "hero-check-circle"
-
-  def kind_label("clause"), do: "Clausulazo"
-  def kind_label("buy"), do: "Pujar"
-  def kind_label("sell"), do: "Vender"
-  def kind_label("unsell"), do: "Retirar de la venta"
-  def kind_label("list"), do: "Poner en venta"
-  def kind_label("lineup_change"), do: "Alineación"
-  def kind_label(_), do: "Tarea"
 
   @doc "¿La recomendación de fichaje conlleva una puja con importe?"
   def bid?(%{"recommendation" => "bid"}), do: true
@@ -343,34 +341,47 @@ defmodule MisterWeb.ReportLive do
       )
 
     ~H"""
-    <div
-      :if={slider?(@rec)}
-      id={@id}
-      phx-hook=".BidSlider"
-      phx-update="ignore"
-      data-expected={@expected}
-      class="mt-2 rounded-lg bg-slate-50 px-2.5 py-2 ring-1 ring-slate-200"
-    >
-      <input
-        type="range"
-        min={@price}
-        max={@expected}
-        step={@step}
-        value={@value}
-        class="w-full accent-sky-600"
-        aria-label="Importe de la puja"
-      />
-      <div class="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-500">
-        <span>
-          pujas <span data-out="bid" class="font-bold text-slate-700">{money(@value)}</span>
-        </span>
-        <span>
-          ganancia
-          <span data-out="gain" class={["font-black", @gain_class]}>{signed_money(@gain)}</span>
-          (<span data-out="pct">{signed_pct(@pct)}</span>)
-        </span>
+    <details :if={slider?(@rec)} class="group mt-1.5">
+      <summary class="inline-flex cursor-pointer list-none items-center gap-1 text-[11px] font-semibold text-sky-600 transition hover:text-sky-700 [&::-webkit-details-marker]:hidden">
+        <.icon name="hero-adjustments-horizontal" class="h-3.5 w-3.5" /> ajustar puja
+        <.icon
+          name="hero-chevron-down"
+          class="h-3.5 w-3.5 transition-transform group-open:rotate-180"
+        />
+      </summary>
+      <div
+        id={@id}
+        phx-hook=".BidSlider"
+        phx-update="ignore"
+        data-expected={@expected}
+        class="mt-1.5 rounded-lg bg-slate-50 px-2.5 py-2 ring-1 ring-slate-200"
+      >
+        <input
+          type="range"
+          min={@price}
+          max={@expected}
+          step={@step}
+          value={@value}
+          class="w-full accent-sky-600"
+          aria-label="Importe de la puja"
+        />
+        <div class="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+          <span>
+            pujas <span data-out="bid" class="font-bold text-slate-700">{money(@value)}</span>
+          </span>
+          <span>
+            ganancia
+            <span data-out="gain" class={["font-black", @gain_class]}>{signed_money(@gain)}</span>
+            (<span data-out="pct">{signed_pct(@pct)}</span>)
+          </span>
+        </div>
+        <p class="mt-0.5 text-[11px] text-slate-500">
+          reventa esperada {money(resale_edge(@rec, "pessimistic"))}–{money(
+            resale_edge(@rec, "optimistic")
+          )}
+        </p>
       </div>
-    </div>
+    </details>
     """
   end
 
@@ -519,15 +530,10 @@ defmodule MisterWeb.ReportLive do
     do:
       "rounded-full bg-emerald-100 px-3 py-1 text-xs font-black uppercase text-emerald-800 ring-1 ring-emerald-300"
 
-  def offer_advice_classes({:hold, _}),
-    do:
-      "rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase text-amber-800 ring-1 ring-amber-300"
-
   def offer_advice_classes({:deny, _}),
     do:
       "rounded-full bg-red-100 px-3 py-1 text-xs font-black uppercase text-red-700 ring-1 ring-red-300"
 
   def offer_advice_label({:accept, _}), do: "Aceptar"
-  def offer_advice_label({:hold, _}), do: "Valórala"
   def offer_advice_label({:deny, _}), do: "Rechazar"
 end

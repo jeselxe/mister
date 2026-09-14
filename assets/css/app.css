@@ -103,3 +103,20 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* Browser surfaces themed from the palette: selection, focus rings and
+   scrollbars ship with defaults that belong to no design system. */
+@layer base {
+  ::selection {
+    background-color: var(--color-emerald-200);
+  }
+
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-emerald-600);
+    outline-offset: 2px;
+  }
+
+  html {
+    scrollbar-color: var(--color-slate-400) transparent;
+  }
+}

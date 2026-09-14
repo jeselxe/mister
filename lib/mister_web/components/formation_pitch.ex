@@ -64,7 +64,7 @@ defmodule MisterWeb.Components.FormationPitch do
             :for={{players, row_index} <- row_items(@rows)}
             class="flex justify-center gap-2 sm:gap-3"
           >
-            <div :for={player <- players} class="w-16 text-center flex flex-col sm:w-20">
+            <div :for={player <- players} class="w-14 text-center flex flex-col xl:w-16">
               <div class="relative mx-auto">
                 <div class="h-11 w-11 overflow-hidden rounded-full shadow-md ring-2 transition-transform hover:scale-110 sm:h-12 sm:w-12">
                   <img

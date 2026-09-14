@@ -42,4 +42,5 @@
 - [x] Pistas de a quién **poner en venta** (`sell_hints`): suplentes que no puntúan o pierden valor, con motivo, valor y oferta esperada (acción `list`), limitadas a los huecos libres de venta (máx. 5 en venta)
 - [x] Clausulazos de **todas las plantillas rivales** vía `/standings` + `/ajax/sw/users` (`data.team_now`), no solo de `/market`; con filtro de rendimiento y tope
 - [x] Deslizador de puja por jugador (hook colocado `.BidSlider`) para ver la ganancia (`reventa esperada − puja`) según lo que pujes, incluso a precio de mercado
+- [x] Filas de jugador destiladas: decisión en una línea, deslizador y banda de reventa detrás de un `<details>`, checklist de una línea y rango de venta colapsado
 - [x] Tests de la vista (12), tests unitarios de `Valuation`, `ClauseDetector`, `Reports`, `StandingsParser` y `Rivals`, y `mix precommit` limpio

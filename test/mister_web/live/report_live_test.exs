@@ -91,8 +91,8 @@ defmodule MisterWeb.ReportLiveTest do
       # puja recomendada con importe
       assert has_element?(view, "#buy-3001", "pujar hasta")
       assert has_element?(view, "#buy-3001", "12.5%")
-      assert has_element?(view, "#buy-3001", "30 pts totales")
-      assert has_element?(view, "#buy-3001", "reventa 7d 8.740.000 €–9.660.000 €")
+      assert has_element?(view, "#buy-3001", "30 pts")
+      assert has_element?(view, "#buy-3001", "reventa esperada 8.740.000 €–9.660.000 €")
 
       # seguimiento sin puja
       assert has_element?(view, "#watch-3002", "sin puja")
