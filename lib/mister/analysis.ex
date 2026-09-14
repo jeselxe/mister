@@ -13,10 +13,12 @@ defmodule Mister.Analysis do
     BudgetEngine,
     ClauseDetector,
     LineupOptimizer,
-    Reports,
+    Report,
     SaleEstimator,
     Valuation
   }
+
+  alias Mister.Report.Input
 
   @doc """
   Construye el informe a partir de:
@@ -64,7 +66,7 @@ defmodule Mister.Analysis do
     lineup = LineupOptimizer.best_lineup(my_squad, squad_details)
     valuations = build_valuations(market_players, my_squad, details_by_id)
 
-    Reports.build(%{
+    Report.build(%Input{
       budget: budget,
       buy_candidates: buy_candidates,
       valuations: valuations,

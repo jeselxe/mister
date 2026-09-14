@@ -266,20 +266,7 @@ defmodule MisterWeb.ReportLive do
 
   def bid_rule_label(rule), do: Map.get(@bid_rules, rule, rule)
 
-  def money(nil), do: "?"
-  def money(n) when is_binary(n), do: n
-  def money(n) when is_float(n), do: n |> trunc() |> money()
-
-  def money(n) when is_integer(n) do
-    n
-    |> Integer.to_string()
-    |> String.reverse()
-    |> String.graphemes()
-    |> Enum.chunk_every(3, 3, [])
-    |> Enum.join(".")
-    |> String.reverse()
-    |> Kernel.<>(" €")
-  end
+  defdelegate money(n), to: Mister.Format
 
   def pts(nil), do: "-"
   def pts(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 1)

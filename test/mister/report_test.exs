@@ -1,7 +1,8 @@
-defmodule Mister.ReportsTest do
+defmodule Mister.ReportTest do
   use ExUnit.Case, async: true
 
-  alias Mister.{PlayerRow, Reports}
+  alias Mister.{PlayerRow, Report}
+  alias Mister.Report.Input
 
   @budget %{
     bid_rule: :balance_only,
@@ -23,7 +24,7 @@ defmodule Mister.ReportsTest do
     }
 
     report =
-      Reports.build(%{
+      Report.build(%Input{
         budget: @budget,
         my_squad: squad,
         lineup: lineup,
@@ -70,7 +71,7 @@ defmodule Mister.ReportsTest do
     }
 
     report =
-      Reports.build(%{
+      Report.build(%Input{
         budget: @budget,
         my_squad: squad,
         lineup: lineup,
@@ -117,7 +118,7 @@ defmodule Mister.ReportsTest do
       Map.new(1..6, fn id -> {id, %{growth_7d: -20.0, value: 1_000_000, total_points: 0}} end)
 
     report =
-      Reports.build(%{
+      Report.build(%Input{
         budget: @budget,
         my_squad: listed ++ [candidate],
         lineup: %{formation: nil, players: []},
@@ -161,7 +162,7 @@ defmodule Mister.ReportsTest do
       Map.new(1..6, fn id -> {id, %{growth_7d: -20.0, value: 1_000_000, total_points: 0}} end)
 
     report =
-      Reports.build(%{
+      Report.build(%Input{
         budget: @budget,
         my_squad: listed ++ [candidate],
         lineup: lineup,
@@ -195,13 +196,10 @@ defmodule Mister.ReportsTest do
     }
 
     report =
-      Reports.build(%{
+      Report.build(%Input{
         budget: %{@budget | bid_allowed_now: 5_000_000},
         buy_candidates: [candidate],
-        valuations: valuations,
-        squad_summary: %{},
-        my_squad: [],
-        lineup: %{}
+        valuations: valuations
       })
 
     assert [rec] = report.buy_recommendations
@@ -231,13 +229,10 @@ defmodule Mister.ReportsTest do
     }
 
     report =
-      Reports.build(%{
+      Report.build(%Input{
         budget: %{@budget | bid_allowed_now: 10_000_000},
         buy_candidates: [candidate],
-        valuations: valuations,
-        squad_summary: %{},
-        my_squad: [],
-        lineup: %{}
+        valuations: valuations
       })
 
     assert [rec] = report.buy_recommendations
@@ -271,13 +266,10 @@ defmodule Mister.ReportsTest do
     }
 
     report =
-      Reports.build(%{
+      Report.build(%Input{
         budget: @budget,
         buy_candidates: candidates,
-        valuations: valuations,
-        squad_summary: %{},
-        my_squad: [],
-        lineup: %{}
+        valuations: valuations
       })
 
     by_id = Map.new(report.buy_recommendations, &{&1.player_id, &1})
@@ -290,5 +282,75 @@ defmodule Mister.ReportsTest do
     assert by_id[1].potential_gain_pessimistic == 140_000
     assert by_id[2].recommendation == "watch"
     assert by_id[2].suggested_bid == nil
+  end
+
+  describe "actions/1" do
+    test "clausulazo con dueño y puja" do
+      report = %{
+        clause_targets: [
+          %{player_id: 1, name: "Mbappé", clause_price: 20_000_000, owner_name: "Fran"}
+        ],
+        buy_recommendations: [
+          %{player_id: 2, name: "Nico", recommendation: "bid", suggested_bid: 8_000_000}
+        ],
+        sell_recommendations: [],
+        sell_hints: []
+      }
+
+      actions = Report.actions(report)
+      clause = Enum.find(actions, &(&1.kind == "clause"))
+
+      assert clause.mister_id == 1
+      assert clause.player_name == "Mbappé"
+      assert clause.description =~ "20.000.000 €"
+      assert clause.description =~ "de Fran"
+      assert Enum.find(actions, &(&1.kind == "buy")).suggested_amount == 8_000_000
+    end
+
+    test "unsell para un titular listado y sell para el resto" do
+      report = %{
+        clause_targets: [],
+        buy_recommendations: [],
+        sell_recommendations: [
+          %{
+            player_id: 1,
+            name: "Koke",
+            verdict: "keep",
+            in_best_lineup: true,
+            sale_range: %{expected: 8_600_000}
+          },
+          %{
+            player_id: 2,
+            name: "Isco",
+            verdict: "sell",
+            in_best_lineup: false,
+            sale_range: %{expected: 10_700_000}
+          }
+        ],
+        sell_hints: []
+      }
+
+      actions = Report.actions(report)
+
+      assert Enum.any?(actions, &(&1.kind == "unsell" and &1.mister_id == 1))
+      assert Enum.any?(actions, &(&1.kind == "sell" and &1.mister_id == 2))
+    end
+
+    test "list para una pista de venta" do
+      report = %{
+        clause_targets: [],
+        buy_recommendations: [],
+        sell_recommendations: [],
+        sell_hints: [
+          %{player_id: 9, name: "Serrano", reason: "no puntúa", sale_range: %{expected: 160_000}}
+        ]
+      }
+
+      [list] = Enum.filter(Report.actions(report), &(&1.kind == "list"))
+
+      assert list.mister_id == 9
+      assert list.suggested_amount == 160_000
+      assert list.description =~ "Serrano"
+    end
   end
 end

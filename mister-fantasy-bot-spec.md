@@ -396,6 +396,11 @@ HTTP ni base de datos. El worker solo conserva la descarga (con
 `Task.async_stream` para los detalles), el fallback de saldo y el
 `Reports.persist!` + `PubSub`. El código de abajo es ilustrativo del flujo.
 
+El ensamblado puro se apoya en `Mister.Report.build/1` (entrada
+`Mister.Report.Input`): decisiones, alertas y el checklist (`Report.actions/1`).
+`Mister.Reports` queda como adaptador de persistencia (`persist!/1`, `latest/0`)
+y `Mister.Format.money/1` centraliza el formato compartido con la vista.
+
 ```elixir
 defmodule Mister.Workers.DailyAnalysis do
   use Oban.Worker, queue: :mister, max_attempts: 3

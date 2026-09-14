@@ -49,4 +49,5 @@
 - [x] Capitán con multiplicador por valor de mercado (x3 <5M, x2 5-10M, x1.5 >=10M); se elige por bonus `puntos x (mult - 1)`, no por puntos
 - [x] Filtro de fichajes por origen: "Solo banca" (por defecto) / "Todos", para no pujar por listados de otros usuarios
 - [x] Ensamblado puro en `Mister.Analysis.build/1` (sin HTTP ni BD) y worker reducido a adaptador; tests con fixtures
+- [x] Informe separado: `Mister.Report` (puro, `Input` + `build/1` + `actions/1`) y `Mister.Reports` (persistencia); `Mister.Format.money/1` único
 - [x] Tests de la vista (12), tests unitarios de `Valuation`, `ClauseDetector`, `Reports`, `StandingsParser` y `Rivals`, y `mix precommit` limpio
