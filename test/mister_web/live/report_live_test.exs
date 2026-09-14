@@ -167,6 +167,25 @@ defmodule MisterWeb.ReportLiveTest do
     end
   end
 
+  describe "adaptador de ofertas" do
+    test "sale_advice cruza titular y delega el consejo en OfferAdvice" do
+      offer = %{bid: 2_000_000, value: 1_000_000, trend_dir: :flat, paid_price: 1_000_000}
+
+      assert {:deny, reason} =
+               MisterWeb.ReportLive.sale_advice(%{"in_best_lineup" => true}, offer)
+
+      assert reason =~ "titular"
+      assert {:accept, _} = MisterWeb.ReportLive.sale_advice(%{"in_best_lineup" => false}, offer)
+    end
+
+    test "purchase_line usa el beneficio del módulo" do
+      offer = %{paid_price: 1_000_000, bid: 1_200_000}
+
+      assert MisterWeb.ReportLive.purchase_line(offer, nil) =~ "+200.000 €"
+      assert MisterWeb.ReportLive.purchase_line(%{paid_price: nil, bid: 1_200_000}, nil) == nil
+    end
+  end
+
   ## Fixtures
 
   defp build_report do
