@@ -28,7 +28,10 @@ defmodule Mister.ClauseDetector do
 
   Recorrer todas las plantillas rivales deja cientos de cláusulas pagables, así
   que se aplica un mínimo de calidad (`:min_value_per_million`, por defecto 1.0
-  pts/M€) y se limita a las mejores `:max_targets` (12 por defecto) por score.
+  pts/M€) y se limita a las mejores `:max_targets` (12 por defecto).
+
+  El orden es por **rentabilidad**: `value_per_million` (puntos por millón de
+  cláusula) descendente, con el `score` como desempate.
   """
   def find_opportunities(player_details, real_balance, opts \\ []) do
     min_ratio = Keyword.get(opts, :min_value_per_million, @min_value_per_million)
@@ -41,7 +44,7 @@ defmodule Mister.ClauseDetector do
     |> Enum.uniq_by(& &1.player_id)
     |> Enum.filter(&(&1.clause_price <= real_balance))
     |> Enum.filter(&(&1.value_per_million >= min_ratio))
-    |> Enum.sort_by(& &1.score, :desc)
+    |> Enum.sort_by(&{&1.value_per_million, &1.score}, :desc)
     |> Enum.take(max_targets)
     |> Enum.map(&Map.put(&1, :urgency, :high))
   end

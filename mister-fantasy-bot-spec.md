@@ -232,7 +232,9 @@ Dos cruces importantes en el job:
 
 Recorrer todas las plantillas deja cientos de cláusulas pagables, así que
 `ClauseDetector` aplica un mínimo de rendimiento (`value_per_million >= 1.0`)
-y limita a las 12 mejores por score. Ambos umbrales son configurables
+y limita a las 12 mejores. El orden es por **rentabilidad** (puntos por millón
+de cláusula, `value_per_million` descendente; el `score` desempata), que es el
+`ratio` que muestra la fila. Ambos umbrales son configurables
 (`:min_value_per_million`, `:max_targets`) y quedan pendientes de calibrar.
 
 ```elixir
@@ -242,7 +244,7 @@ defmodule Mister.ClauseDetector do
     |> Enum.filter(&has_owner?/1)
     |> Enum.map(&score/1)
     |> Enum.filter(&(&1.clause_price <= real_balance))
-    |> Enum.sort_by(& &1.score, :desc)
+    |> Enum.sort_by(&{&1.value_per_million, &1.score}, :desc)
     |> Enum.map(&Map.put(&1, :urgency, :high))
   end
 

@@ -65,6 +65,37 @@ defmodule Mister.ClauseDetectorTest do
     assert ClauseDetector.find_opportunities([flojo], 20_000_000) == []
   end
 
+  test "ordena por rentabilidad (puntos por millón), no por score" do
+    # A: media 3, cláusula 2M  -> ratio 1.5 (score 28)
+    # B: media 10, cláusula 10M -> ratio 1.0 (score 90)
+    rentable = %{
+      "player" => %{
+        "id" => 1,
+        "name" => "Rentable",
+        "avg" => 3.0,
+        "owner" => %{"id" => 9},
+        "clause" => %{"value" => 2_000_000}
+      }
+    }
+
+    caro = %{
+      "player" => %{
+        "id" => 2,
+        "name" => "Caro",
+        "avg" => 10.0,
+        "owner" => %{"id" => 9},
+        "clause" => %{"value" => 10_000_000}
+      }
+    }
+
+    names =
+      [caro, rentable]
+      |> ClauseDetector.find_opportunities(20_000_000)
+      |> Enum.map(& &1.name)
+
+    assert names == ["Rentable", "Caro"]
+  end
+
   test "limita a las mejores oportunidades" do
     candidates =
       for id <- 1..20 do
