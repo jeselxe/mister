@@ -14,28 +14,34 @@ defmodule Mister.ClauseDetector do
   (`Mister.Rivals`) además del mercado.
   """
 
-  # Mínimo de puntos por millón de cláusula para considerar el clausulazo.
-  @min_value_per_million 1.0
+  # Media de puntos mínima para que el clausulazo aporte al once.
+  @min_avg 2.5
+  # Tope de prima sobre el valor de mercado. El precio "justo" es +50% (la
+  # cláusula suele ser 1.5x el valor); por encima de +150% pagas más de 2.5x
+  # el valor y casi nunca compensa.
+  @max_premium_pct 150
   # Tope de clausulazos en el informe (el resto son ruido).
   @max_targets 12
 
   @doc """
   Filtra y puntúa oportunidades de clausulazo pagables con `real_balance`.
 
-  Cada oportunidad incluye `value_per_million` (media de puntos por millón de
-  cláusula) y un `score` simple (`avg * 10 - clause/1M`) pensado como punto de
-  partida para calibrar con datos reales de temporada.
+  Cada oportunidad incluye `value_per_million` (media por millón de cláusula),
+  `clause_premium_pct` (cuánto supera la cláusula al valor de mercado) y un
+  `score` (`avg * 10 - clause/1M`), útiles para mostrar y calibrar.
 
-  Recorrer todas las plantillas rivales deja cientos de cláusulas pagables. La
-  tubería, en orden: descartar sin dueño o sin cláusula, exigir
-  `cláusula <= saldo real`, aplicar el mínimo de calidad
-  (`:min_value_per_million`, 1.0 pts/M€ por defecto), **ordenar por
-  rentabilidad** (`value_per_million` descendente, `score` como desempate) y
-  **quedarse con las `:max_targets` mejores** (12 por defecto). El tope se
-  aplica **después** de ordenar, así que nunca deja fuera a una mejor.
+  Criterio (en orden): con dueño y cláusula, `cláusula <= saldo real`, media
+  >= `:min_avg` (2.5 por defecto), prima <= `:max_premium_pct` (150% por
+  defecto), **ordenar por media ajustada por prima** (`media / (1 + prima/100)`,
+  descendente, con `media` como desempate) y quedarse con las `:max_targets`
+  mejores (12). El tope se aplica **después** de ordenar.
+
+  Así no gana la cláusula más barata (suelo de 1M sobre jugadores de 160k),
+  sino el que más puntúa sin pagar una barbaridad sobre su valor de reventa.
   """
   def find_opportunities(player_details, real_balance, opts \\ []) do
-    min_ratio = Keyword.get(opts, :min_value_per_million, @min_value_per_million)
+    min_avg = Keyword.get(opts, :min_avg, @min_avg)
+    max_premium = Keyword.get(opts, :max_premium_pct, @max_premium_pct)
     max_targets = Keyword.get(opts, :max_targets, @max_targets)
 
     player_details
@@ -44,11 +50,25 @@ defmodule Mister.ClauseDetector do
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq_by(& &1.player_id)
     |> Enum.filter(&(&1.clause_price <= real_balance))
-    |> Enum.filter(&(&1.value_per_million >= min_ratio))
-    |> Enum.sort_by(&{&1.value_per_million, &1.score}, :desc)
+    |> Enum.filter(&(&1.season_avg >= min_avg))
+    |> Enum.filter(&premium_within?(&1, max_premium))
+    |> Enum.sort_by(fn target -> {blended(target), target.season_avg} end, :desc)
     |> Enum.take(max_targets)
     |> Enum.map(&Map.put(&1, :urgency, :high))
   end
+
+  # Sin valor de mercado conocido no se puede juzgar la prima: no se descarta.
+  defp premium_within?(_target, nil), do: true
+  defp premium_within?(%{clause_premium_pct: nil}, _max), do: true
+  defp premium_within?(%{clause_premium_pct: pct}, max), do: pct <= max
+
+  # Media ajustada por prima: puntos de media por unidad de sobreprecio. Con
+  # prima +50% divide por 1.5; sin prima (o cláusula por debajo del valor) no
+  # divide.
+  defp blended(%{clause_premium_pct: nil, season_avg: avg}), do: avg
+
+  defp blended(%{clause_premium_pct: pct, season_avg: avg}),
+    do: avg / (1 + max(pct, 0) / 100)
 
   defp has_owner?(detail) do
     case get_player(detail)["owner"] || detail["owner"] do

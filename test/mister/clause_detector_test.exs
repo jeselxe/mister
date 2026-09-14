@@ -51,49 +51,61 @@ defmodule Mister.ClauseDetectorTest do
     assert length(ClauseDetector.find_opportunities([@rival, @rival], 10_000_000)) == 1
   end
 
-  test "descarta cláusulas con poco rendimiento (pts/M€)" do
+  test "descarta cláusulas con media insuficiente" do
     flojo = %{
       "player" => %{
         "id" => 4,
         "name" => "Flojo",
         "avg" => 2.0,
         "owner" => %{"id" => 5},
-        "clause" => %{"value" => 10_000_000}
+        "clause" => %{"value" => 1_000_000},
+        "value" => 1_000_000
       }
     }
 
     assert ClauseDetector.find_opportunities([flojo], 20_000_000) == []
   end
 
-  test "ordena por rentabilidad (puntos por millón), no por score" do
-    # A: media 3, cláusula 2M  -> ratio 1.5 (score 28)
-    # B: media 10, cláusula 10M -> ratio 1.0 (score 90)
-    rentable = %{
-      "player" => %{
-        "id" => 1,
-        "name" => "Rentable",
-        "avg" => 3.0,
-        "owner" => %{"id" => 9},
-        "clause" => %{"value" => 2_000_000}
-      }
-    }
-
+  test "descarta clausulazos con prima desorbitada" do
     caro = %{
       "player" => %{
-        "id" => 2,
+        "id" => 7,
         "name" => "Caro",
-        "avg" => 10.0,
-        "owner" => %{"id" => 9},
-        "clause" => %{"value" => 10_000_000}
+        "avg" => 5.0,
+        "owner" => %{"id" => 5},
+        "clause" => %{"value" => 7_000_000},
+        "value" => 1_000_000
       }
     }
 
-    names =
-      [caro, rentable]
-      |> ClauseDetector.find_opportunities(20_000_000)
-      |> Enum.map(& &1.name)
+    # Prima +600% > 150%: fuera aunque puntúe.
+    assert ClauseDetector.find_opportunities([caro], 20_000_000) == []
+  end
 
-    assert names == ["Rentable", "Caro"]
+  test "ordena por media ajustada por prima, no por media bruta" do
+    # A: media 4.0, prima 0%    -> 4.00
+    # C: media 5.0, prima 50%   -> 3.33
+    # B: media 6.0, prima 100%  -> 3.00  (la más alta en media, la última)
+    a = rival(1, "A", 4.0, 1_000_000, 1_000_000)
+    b = rival(2, "B", 6.0, 2_000_000, 1_000_000)
+    c = rival(3, "C", 5.0, 1_500_000, 1_000_000)
+
+    names = [b, c, a] |> ClauseDetector.find_opportunities(20_000_000) |> Enum.map(& &1.name)
+
+    assert names == ["A", "C", "B"]
+  end
+
+  defp rival(id, name, avg, clause, value) do
+    %{
+      "player" => %{
+        "id" => id,
+        "name" => name,
+        "avg" => avg,
+        "owner" => %{"id" => 5},
+        "clause" => %{"value" => clause},
+        "value" => value
+      }
+    }
   end
 
   test "el tope se aplica tras ordenar: devuelve las mejores por ratio" do
