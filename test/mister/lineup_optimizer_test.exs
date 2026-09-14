@@ -54,6 +54,25 @@ defmodule Mister.LineupOptimizerTest do
     assert captain_of(cheap: 1.1, expensive: 4.0) == 20
   end
 
+  test "mezcla forma reciente (50%) con media de temporada (50%)" do
+    squad =
+      [row(1, "GK", 1, 1_000_000, 3.0)] ++
+        for(i <- 2..5, do: row(i, "D#{i}", 2, 2_000_000, 3.0)) ++
+        for(i <- 6..9, do: row(i, "M#{i}", 3, 3_000_000, 3.0)) ++
+        [row(20, "Fwd", 4, 1_000_000, 3.0), row(21, "Fwd2", 4, 12_000_000, 3.0)]
+
+    # Forma reciente 6.0, media de temporada 3.0 -> 0.5*6 + 0.5*3 = 4.5
+    detail = %{
+      "player" => %{"id" => 20, "avg" => 3.0, "value" => 1_000_000, "status" => nil},
+      "points" => for(_ <- 1..5, do: %{"points" => %{"points" => 6.0}})
+    }
+
+    lineup = LineupOptimizer.best_lineup(squad, [detail])
+    player = Enum.find(lineup.players, &(&1.player_id == 20))
+
+    assert player.expected_points == 4.5
+  end
+
   defp captain_of(cheap: cheap_avg, expensive: exp_avg) do
     low_squad(cheap_avg, exp_avg) |> LineupOptimizer.best_lineup([]) |> Map.get(:captain_id)
   end

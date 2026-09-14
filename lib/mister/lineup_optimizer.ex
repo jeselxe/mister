@@ -12,6 +12,9 @@ defmodule Mister.LineupOptimizer do
     (`nil`, `""`, `"ok"` = disponible; cualquier otro valor = no disponible),
     más seguro ante estados nuevos no vistos todavía (solo se ha confirmado
     `"injury"` para lesionados).
+  * **Puntos esperados:** media de las últimas 5 jornadas mezclada 50/50 con
+    la media de temporada (`@recent_weight`), para que un pico puntual no
+    desplace al capitán ni al once.
 
   Limitación conocida: la disponibilidad solo se puede comprobar en jugadores
   con detalle cargado (`/ajax/sw/players`); sin detalle se asume disponible.
@@ -30,6 +33,11 @@ defmodule Mister.LineupOptimizer do
   ]
 
   @available_statuses [nil, "", "ok"]
+
+  # Peso de la forma reciente (últimos 5 partidos) frente a la media de
+  # temporada al estimar los puntos esperados: 50/50 suaviza el pico de una
+  # sola jornada sin ignorar la racha actual.
+  @recent_weight 0.5
 
   @doc """
   Multiplicador de capitán según el valor de mercado (en euros):
@@ -175,16 +183,27 @@ defmodule Mister.LineupOptimizer do
 
   defp expected_points_for(%PlayerRow{season_avg: avg}, nil), do: avg || 0.0
 
-  defp expected_points_for(_p, detail) do
-    # El detalle trae en `points` la lista de jornadas (cada una con
-    # `points.points`); `player.points` es un total escalar y no sirve aquí.
+  defp expected_points_for(%PlayerRow{season_avg: row_avg}, detail) do
+    season = get_in(detail, ["player", "avg"]) || row_avg
+    recent = recent_average(detail)
+
+    cond do
+      is_nil(season) and is_nil(recent) -> 0.0
+      is_nil(season) -> recent
+      is_nil(recent) -> season
+      true -> Float.round(@recent_weight * recent + (1 - @recent_weight) * season, 2)
+    end
+  end
+
+  # Media de las últimas 5 jornadas con puntos (nil si no hay detalle útil).
+  defp recent_average(detail) do
     recent =
       (detail["points"] || [])
       |> Enum.filter(&(get_in(&1, ["points", "points"]) != nil))
       |> Enum.take(-5)
 
     if recent == [] do
-      get_in(detail, ["player", "avg"]) || 0.0
+      nil
     else
       recent
       |> Enum.map(&get_in(&1, ["points", "points"]))
