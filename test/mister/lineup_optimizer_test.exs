@@ -46,6 +46,27 @@ defmodule Mister.LineupOptimizerTest do
     assert lineup.total_points == 52.0
   end
 
+  test "el multiplicador no basta: manda puntos x (mult - 1)" do
+    # x3 con 0.9 -> 1.8  vs  x1.5 con 4.0 -> 2.0  => gana el caro
+    assert captain_of(cheap: 0.9, expensive: 4.0) == 21
+
+    # x3 con 1.1 -> 2.2  vs  x1.5 con 4.0 -> 2.0  => gana el barato
+    assert captain_of(cheap: 1.1, expensive: 4.0) == 20
+  end
+
+  defp captain_of(cheap: cheap_avg, expensive: exp_avg) do
+    low_squad(cheap_avg, exp_avg) |> LineupOptimizer.best_lineup([]) |> Map.get(:captain_id)
+  end
+
+  # Base de relleno con bonus bajo (x3, media 0.5 -> +1) para que el capitán
+  # solo pueda salir de los dos delanteros.
+  defp low_squad(cheap_avg, exp_avg) do
+    [row(1, "GK", 1, 1_000_000, 0.5)] ++
+      for(i <- 2..5, do: row(i, "D#{i}", 2, 2_000_000, 0.5)) ++
+      for(i <- 6..9, do: row(i, "M#{i}", 3, 3_000_000, 0.5)) ++
+      [row(20, "Cheap", 4, 1_000_000, cheap_avg), row(21, "Expensive", 4, 12_000_000, exp_avg)]
+  end
+
   defp squad do
     [row(1, "GK", 1, 1_000_000, 4.0)] ++
       for(i <- 2..5, do: row(i, "D#{i}", 2, 2_000_000, 3.0)) ++
