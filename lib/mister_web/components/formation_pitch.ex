@@ -35,7 +35,8 @@ defmodule MisterWeb.Components.FormationPitch do
       assign(assigns,
         formation: get_key(lineup, :formation),
         rows: rows(lineup),
-        total_points: get_key(lineup, :total_points)
+        total_points: get_key(lineup, :total_points),
+        captain_multiplier: get_key(lineup, :captain_multiplier)
       )
 
     ~H"""
@@ -55,7 +56,10 @@ defmodule MisterWeb.Components.FormationPitch do
           </span>
           <span class="text-xs font-medium text-emerald-100">
             Total esperado: <span class="font-bold text-white">{fmt_pts(@total_points)}</span>
-            pts <span class="ml-1 opacity-75">(con bonus capitán x2)</span>
+            pts
+            <span :if={fmt_mult(@captain_multiplier)} class="ml-1 opacity-75">
+              (capitán x{fmt_mult(@captain_multiplier)})
+            </span>
           </span>
         </div>
 
@@ -161,6 +165,16 @@ defmodule MisterWeb.Components.FormationPitch do
   defp fmt_pts(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 1)
   defp fmt_pts(n) when is_integer(n), do: Integer.to_string(n)
   defp fmt_pts(other), do: to_string(other)
+
+  defp fmt_mult(nil), do: nil
+
+  defp fmt_mult(n) when is_float(n) do
+    if n == trunc(n),
+      do: Integer.to_string(trunc(n)),
+      else: :erlang.float_to_binary(n, decimals: 1)
+  end
+
+  defp fmt_mult(n), do: to_string(n)
 
   # Acceso tolerante a claves átomo/string (JSON round-trip).
   defp get_key(map, key) when is_map(map) do

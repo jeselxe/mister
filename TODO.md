@@ -46,4 +46,5 @@
 - [x] Endurecido: confirmación en dos pasos para aceptar oferta (irreversible), leyenda de términos y navegación con contadores
 - [x] Checklist compacto por jugador (`report_actions.player_name`, migración) en vez de repetir la descripción de cada sección
 - [x] Tareas dentro de cada sección (`report_actions.mister_id`): controles hecha/descartar/deshacer en la propia fila; aceptar una oferta marca sola la venta como hecha
+- [x] Capitán con multiplicador por valor de mercado (x3 <5M, x2 5-10M, x1.5 >=10M); se elige por bonus `puntos x (mult - 1)`, no por puntos
 - [x] Tests de la vista (12), tests unitarios de `Valuation`, `ClauseDetector`, `Reports`, `StandingsParser` y `Rivals`, y `mix precommit` limpio

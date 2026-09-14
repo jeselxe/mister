@@ -271,7 +271,7 @@ La fórmula de `score` es un punto de partida simple, pensada para calibrarse co
 
 Formaciones soportadas: 3-4-3, 3-5-2, 4-3-3, 4-4-2, 4-5-1, 5-3-2, 5-4-1.
 
-**Capitán:** el de mayor puntuación esperada dentro del once elegido (el x2 solo tiene sentido sobre quien juega). El total del informe ya incluye el bonus del capitán.
+**Capitán:** no puntúa x2 fijo. El multiplicador depende del **valor de mercado** del jugador: **x3** si vale menos de 5M, **x2** entre 5M y 10M, **x1.5** a partir de 10M (`LineupOptimizer.captain_multiplier/1`). Se elige al que maximiza el bonus `puntos × (multiplicador − 1)`, no al de más puntos: un jugador barato y en forma puede ser mejor capitán que uno caro con algo más de media. El total del informe ya incluye el bonus, y el once guarda `captain_multiplier`.
 
 **Exclusión por lesión/sanción:** en el JSON de `/ajax/sw/players`, el campo `status` vale `"injury"` para lesionados, con detalle en `injury: {category, description, duration}`. No se ha confirmado aún el valor exacto para sanciones, así que el filtro usa **lista blanca** (`nil`, `""`, `"ok"` = disponible; cualquier otro valor = no disponible) en vez de una lista cerrada de estados "malos" — más seguro ante estados nuevos no vistos todavía.
 
