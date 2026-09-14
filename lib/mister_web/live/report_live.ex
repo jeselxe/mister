@@ -40,6 +40,7 @@ defmodule MisterWeb.ReportLive do
       |> assign(:offers, [])
       |> assign(:offers_error, nil)
       |> assign(:confirming, nil)
+      |> assign(:only_bank, true)
 
     socket =
       if connected?(socket) do
@@ -150,7 +151,18 @@ defmodule MisterWeb.ReportLive do
     end
   end
 
+  # Filtro de fichajes: por defecto solo banca (agentes libres), porque no se
+  # suele pujar por jugadores listados por otros usuarios.
+  @impl true
+  def handle_event("market_filter", %{"scope" => scope}, socket) do
+    {:noreply, assign(socket, :only_bank, scope == "bank")}
+  end
+
   ## Helpers de plantilla
+
+  @doc "Filtra las pujas por origen: solo banca (agentes libres) o todas."
+  def filter_buys(buys, true), do: Enum.filter(buys, &(&1["source"] == "banca"))
+  def filter_buys(buys, false), do: buys
 
   defp load_offers(socket) do
     case Mister.Client.fetch_offers_received() do

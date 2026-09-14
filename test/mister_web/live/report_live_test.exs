@@ -91,6 +91,8 @@ defmodule MisterWeb.ReportLiveTest do
 
     test "separa pujas de seguimientos y muestra la revalorización", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
+      # el filtro por defecto oculta los listados de usuario
+      view |> element("#market-filter-all") |> render_click()
 
       # puja recomendada con importe
       assert has_element?(view, "#buy-3001", "pujar hasta")
@@ -108,6 +110,20 @@ defmodule MisterWeb.ReportLiveTest do
       assert has_element?(view, "#bid-slider-3002 input[type=range]")
       assert has_element?(view, "#watch-3003")
       refute has_element?(view, "#bid-slider-3003")
+    end
+
+    test "filtra fichajes: solo banca por defecto", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # la banca se ve; los listados de otros usuarios no
+      assert has_element?(view, "#buy-3001")
+      refute has_element?(view, "#watch-3002")
+
+      view |> element("#market-filter-all") |> render_click()
+      assert has_element?(view, "#watch-3002")
+
+      view |> element("#market-filter-bank") |> render_click()
+      refute has_element?(view, "#watch-3002")
     end
 
     test "un titular en venta se marca como no vender", %{conn: conn, report: report} do
