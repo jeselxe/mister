@@ -386,23 +386,23 @@ defmodule MisterWeb.ReportLive do
 
   def pos_classes("PT"),
     do:
-      "rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-amber-800 ring-1 ring-amber-300"
+      "rounded bg-amber-100 px-1.5 text-[10px] font-black tracking-wide text-amber-800 ring-1 ring-amber-300"
 
   def pos_classes("DF"),
     do:
-      "rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-sky-800 ring-1 ring-sky-300"
+      "rounded bg-sky-100 px-1.5  text-[10px] font-black tracking-wide text-sky-800 ring-1 ring-sky-300"
 
   def pos_classes("MD"),
     do:
-      "rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-emerald-800 ring-1 ring-emerald-300"
+      "rounded bg-emerald-100 px-1.5  text-[10px] font-black tracking-wide text-emerald-800 ring-1 ring-emerald-300"
 
   def pos_classes("DC"),
     do:
-      "rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-rose-800 ring-1 ring-rose-300"
+      "rounded bg-rose-100 px-1.5 text-[10px] font-black tracking-wide text-rose-800 ring-1 ring-rose-300"
 
   def pos_classes(_),
     do:
-      "rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-slate-600 ring-1 ring-slate-200"
+      "rounded bg-slate-100 px-1.5 text-[10px] font-black tracking-wide text-slate-600 ring-1 ring-slate-200"
 
   def kind_icon("clause"), do: "hero-bolt"
   def kind_icon("buy"), do: "hero-shopping-bag"
