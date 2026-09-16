@@ -29,7 +29,7 @@ defmodule Mister.AnalysisTest do
   end
 
   # Detalle con la forma de `Mister.Client.player_detail/2` (sin el sobre data).
-  defp detail(id, opts \\ []) do
+  defp detail(id, opts) do
     player =
       %{"id" => id, "avg" => Keyword.get(opts, :avg, 5.0)}
       |> maybe_put("value", Keyword.get(opts, :value))
@@ -126,6 +126,37 @@ defmodule Mister.AnalysisTest do
     by_id = Map.new(report.sell_recommendations, &{&1.player_id, &1})
     assert by_id[8].verdict == "keep"
     assert by_id[6].verdict == "sell"
+  end
+
+  test "adjunta el id del listado y el dueño para poder pujar" do
+    candidate = row(1, 4, trend: :up)
+
+    detail = %{
+      "player" => %{
+        "id" => 1,
+        "avg" => 5.0,
+        "market" => %{"id" => 555},
+        "owner" => %{"id" => 9}
+      }
+    }
+
+    report =
+      build(%{market_players: [candidate], details_by_id: %{1 => detail}, balance: 10_000_000})
+
+    assert [rec] = report.buy_recommendations
+    assert rec.id_market == 555
+    assert rec.offeree_id == 9
+  end
+
+  test "offeree_id es nil en listados de banca" do
+    candidate = row(1, 4, trend: :up)
+    detail = %{"player" => %{"id" => 1, "avg" => 5.0, "market" => %{"id" => 555}}}
+
+    report =
+      build(%{market_players: [candidate], details_by_id: %{1 => detail}, balance: 10_000_000})
+
+    assert [rec] = report.buy_recommendations
+    assert rec.offeree_id == nil
   end
 
   test "own_user_id sale del owner de un jugador propio" do

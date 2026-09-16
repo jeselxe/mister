@@ -40,6 +40,7 @@ defmodule MisterWeb.ReportLive do
       |> assign(:offers, [])
       |> assign(:offers_error, nil)
       |> assign(:confirming, nil)
+      |> assign(:confirming_bid, nil)
       |> assign(:only_bank, true)
 
     socket =
@@ -122,6 +123,46 @@ defmodule MisterWeb.ReportLive do
     {:noreply, assign(socket, :confirming, nil)}
   end
 
+  # Puja por un jugador del mercado. Compromete saldo, así que se pide una
+  # segunda pulsación de confirmación (como aceptar una oferta).
+  @impl true
+  def handle_event("place_bid", params, socket) do
+    player_id = String.to_integer(params["id_player"])
+
+    if socket.assigns[:confirming_bid] == player_id do
+      opts =
+        case params["offeree_id"] do
+          v when v in [nil, ""] -> []
+          v -> [offeree_id: String.to_integer(v)]
+        end
+
+      case Mister.Client.place_bid(
+             String.to_integer(params["id_market"]),
+             player_id,
+             String.to_integer(params["amount"]),
+             opts
+           ) do
+        {:ok, :bid} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Puja enviada ✅")
+           |> complete_buy_action(player_id)
+           |> assign(:confirming_bid, nil)}
+
+        {:error, reason} ->
+          Logger.error("ReportLive: no se pudo pujar: #{inspect(reason)}")
+          {:noreply, put_flash(socket, :error, "No se pudo enviar la puja")}
+      end
+    else
+      {:noreply, assign(socket, :confirming_bid, player_id)}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_bid", _params, socket) do
+    {:noreply, assign(socket, :confirming_bid, nil)}
+  end
+
   # Deniega la oferta y mantiene el jugador a la escucha de nuevas ofertas.
   @impl true
   def handle_event("keep_on_sale", %{"id_market" => id_market}, socket) do
@@ -201,6 +242,14 @@ defmodule MisterWeb.ReportLive do
   # fila de su sección (el checklist ya no existe como sección aparte).
   defp action_map(actions) do
     Map.new(actions, fn action -> {{action.kind, action.mister_id}, action} end)
+  end
+
+  # Marca como hecha la acción "buy" del jugador al que acabamos de pujar.
+  defp complete_buy_action(socket, mister_id) do
+    case Map.get(socket.assigns.action_map, {"buy", mister_id}) do
+      nil -> socket
+      action -> update_action_status(socket, action.id, "done")
+    end
   end
 
   # Marca como hecha la acción "sell" del jugador cuya oferta se acaba de

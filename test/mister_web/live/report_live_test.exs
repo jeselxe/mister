@@ -113,6 +113,18 @@ defmodule MisterWeb.ReportLiveTest do
       refute has_element?(view, "#bid-slider-3003")
     end
 
+    test "pide confirmación antes de pujar por un jugador del mercado", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      # primer clic: pide confirmación, sin llamar a la API
+      view |> element("#place-bid-3001") |> render_click()
+      assert has_element?(view, "#confirm-bid-3001")
+
+      # cancelar vuelve al estado inicial
+      view |> element("#cancel-bid-3001") |> render_click()
+      assert has_element?(view, "#place-bid-3001")
+    end
+
     test "filtra fichajes: solo banca por defecto", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
 
@@ -226,6 +238,8 @@ defmodule MisterWeb.ReportLiveTest do
           recommendation: "bid",
           source: "banca",
           seller_name: nil,
+          id_market: 19_115_043_918,
+          offeree_id: nil,
           suggested_bid: 8_400_000
         },
         %{

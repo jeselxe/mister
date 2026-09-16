@@ -45,6 +45,7 @@ defmodule Mister.Analysis do
     market_players = Enum.reject(market_players, &MapSet.member?(own_ids, &1.player_id))
 
     buy_candidates = Enum.filter(market_players, &interesting?/1)
+    market_listings = build_market_listings(buy_candidates, details_by_id)
 
     market_ids = market_players |> Enum.map(& &1.player_id) |> Enum.uniq()
     squad_ids = my_squad |> Enum.map(& &1.player_id) |> Enum.uniq()
@@ -70,6 +71,7 @@ defmodule Mister.Analysis do
       budget: budget,
       buy_candidates: buy_candidates,
       valuations: valuations,
+      market_listings: market_listings,
       clause_targets: clause_targets,
       lineup: lineup,
       squad_summary: squad_summary,
@@ -113,6 +115,24 @@ defmodule Mister.Analysis do
     ids
     |> Enum.map(&Map.get(details_by_id, &1))
     |> Enum.reject(&is_nil/1)
+  end
+
+  # Para poder pujar hace falta el id del listado (`player.market.id`) y el
+  # dueño (`player.owner.id`, sin valor en banca).
+  defp build_market_listings(buy_candidates, details_by_id) do
+    Map.new(buy_candidates, fn row ->
+      player = get_in(details_by_id, [row.player_id, "player"]) || %{}
+
+      {row.player_id,
+       %{id_market: get_in(player, ["market", "id"]), offeree_id: offeree_id(player)}}
+    end)
+  end
+
+  defp offeree_id(player) do
+    case get_in(player, ["owner", "id"]) do
+      id when is_integer(id) and id > 0 -> id
+      _ -> nil
+    end
   end
 
   defp build_valuations(market_players, my_squad, details_by_id) do

@@ -8,11 +8,15 @@ defmodule Mister.Format do
 
   @doc ~S(Importe en euros con separador de miles: `1234567 -> "1.234.567 €"`.)
   def money(nil), do: "?"
-  def money(n) when is_integer(n), do: format_money(n)
-  def money(n) when is_float(n), do: n |> trunc() |> format_money()
   def money(n) when is_binary(n), do: n
+  def money(n), do: number(n) <> " €"
 
-  defp format_money(n) do
+  @doc ~S(Número con separador de miles, sin sufijo: `1234567 -> "1.234.567"`.)
+  def number(nil), do: ""
+  def number(n) when is_binary(n), do: n
+  def number(n) when is_float(n), do: n |> trunc() |> number()
+
+  def number(n) when is_integer(n) do
     n
     |> Integer.to_string()
     |> String.reverse()
@@ -20,6 +24,5 @@ defmodule Mister.Format do
     |> Enum.chunk_every(3, 3, [])
     |> Enum.join(".")
     |> String.reverse()
-    |> Kernel.<>(" €")
   end
 end

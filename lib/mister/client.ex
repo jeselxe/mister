@@ -124,6 +124,45 @@ defmodule Mister.Client do
     end
   end
 
+  @doc """
+  Lanza una puja por un jugador del mercado (`POST /ajax/bid`).
+
+  `offeree_id` es el dueño del listado (vacío si es la banca) y `amount` el
+  importe pujado; Mister lo espera también formateado con puntos en `bid`.
+  """
+  def place_bid(id_market, id_player, amount, opts \\ []) do
+    offeree_id = Keyword.get(opts, :offeree_id)
+
+    form = [
+      offeree_id: offeree_id || "",
+      id_market: id_market,
+      id_player: id_player,
+      action: "bid",
+      bid: Mister.Format.number(amount),
+      bid_range: amount
+    ]
+
+    case request("/ajax/bid", form: form, partial_request: false) do
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        if bid_error?(body) do
+          Logger.error("Mister.Client: /ajax/bid devolvio un error: #{inspect(body)}")
+          {:error, :bid_rejected}
+        else
+          {:ok, :bid}
+        end
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        Logger.error("Mister.Client: puja respondio #{status}: #{inspect(body)}")
+        {:error, {:http_status, status}}
+
+      error ->
+        error
+    end
+  end
+
+  defp bid_error?(%{"status" => "error"}), do: true
+  defp bid_error?(_), do: false
+
   @doc "Listado de mercado: jugadores libres + rivales clausulables (HTML)."
   def fetch_market, do: fetch_html("/market")
 

@@ -284,6 +284,38 @@ defmodule Mister.ReportTest do
     assert by_id[2].suggested_bid == nil
   end
 
+  test "las pujas llevan el id del listado y el dueño para poder pujar" do
+    candidate = %PlayerRow{
+      player_id: 1,
+      name: "Chollo",
+      position: 4,
+      price: 1_000_000,
+      trend: :up
+    }
+
+    valuations = %{
+      1 => %{
+        growth_1d: 2.0,
+        growth_7d: 20.0,
+        growth_30d: 40.0,
+        projected_value: 1_200_000,
+        resale_range: %{pessimistic: 1_140_000, expected: 1_200_000, optimistic: 1_260_000}
+      }
+    }
+
+    report =
+      Report.build(%Input{
+        budget: @budget,
+        buy_candidates: [candidate],
+        valuations: valuations,
+        market_listings: %{1 => %{id_market: 999, offeree_id: 7}}
+      })
+
+    assert [rec] = report.buy_recommendations
+    assert rec.id_market == 999
+    assert rec.offeree_id == 7
+  end
+
   describe "actions/1" do
     test "clausulazo con dueño y puja" do
       report = %{

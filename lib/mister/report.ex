@@ -32,13 +32,14 @@ defmodule Mister.Report do
       budget: budget,
       buy_candidates: buy_candidates,
       valuations: valuations,
+      market_listings: market_listings,
       clause_targets: clause_targets,
       lineup: lineup,
       squad_summary: squad_summary,
       my_squad: my_squad
     } = input
 
-    buy_recommendations = buy_recommendations(buy_candidates, budget, valuations)
+    buy_recommendations = buy_recommendations(buy_candidates, budget, valuations, market_listings)
     sell_recommendations = sell_recommendations(my_squad, lineup, valuations)
     sale_slots = sale_slots(my_squad, lineup)
     sell_hints = sell_hints(my_squad, lineup, valuations, sale_slots.free)
@@ -151,9 +152,9 @@ defmodule Mister.Report do
 
   # Pujas: separa "pujar" (con importe) de "solo seguir". Las pujas van primero
   # y, dentro de cada grupo, por ganancia proyectada descendente.
-  defp buy_recommendations(buy_candidates, budget, valuations) do
+  defp buy_recommendations(buy_candidates, budget, valuations, market_listings) do
     buy_candidates
-    |> Enum.map(&buy_recommendation(&1, budget, valuations))
+    |> Enum.map(&buy_recommendation(&1, budget, valuations, market_listings))
     |> Enum.reject(&is_nil/1)
     |> Enum.sort_by(
       fn rec ->
@@ -166,10 +167,11 @@ defmodule Mister.Report do
   defp bid_rank("bid"), do: 0
   defp bid_rank(_), do: 1
 
-  defp buy_recommendation(row, budget, valuations) do
+  defp buy_recommendation(row, budget, valuations, market_listings) do
     valuation = Map.get(valuations, row.player_id) || Valuation.from_detail(%{}, row.price)
     pts_per_million = pts_per_million(row)
     resale = valuation.resale_range
+    listing = Map.get(market_listings, row.player_id, %{})
 
     # La puja es el coste real de la operación: la ganancia se mide contra ella.
     bid = base_bid(row.price, budget.bid_allowed_now, resale.expected)
@@ -210,6 +212,8 @@ defmodule Mister.Report do
       recommendation: to_string(recommendation),
       source: source(row),
       seller_name: seller_label(row),
+      id_market: listing[:id_market],
+      offeree_id: listing[:offeree_id],
       suggested_bid: if(recommendation == :bid, do: bid, else: nil)
     }
   end

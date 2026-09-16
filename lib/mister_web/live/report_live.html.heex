@@ -364,6 +364,45 @@
                     <.action_controls action={@action_map[{"buy", rec["player_id"]}]} />
                   </div>
                 </div>
+                <%= if rec["id_market"] && rec["suggested_bid"] do %>
+                  <div class="mt-1.5 flex flex-wrap items-center justify-end gap-2">
+                    <%= if @confirming_bid == rec["player_id"] do %>
+                      <button
+                        type="button"
+                        phx-click="place_bid"
+                        phx-value-id_market={rec["id_market"]}
+                        phx-value-id_player={rec["player_id"]}
+                        phx-value-amount={rec["suggested_bid"]}
+                        phx-value-offeree_id={rec["offeree_id"] || ""}
+                        id={"confirm-bid-#{rec["player_id"]}"}
+                        class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:bg-emerald-500 active:scale-95 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
+                      >
+                        Confirmar puja {money(rec["suggested_bid"])}
+                      </button>
+                      <button
+                        type="button"
+                        phx-click="cancel_bid"
+                        id={"cancel-bid-#{rec["player_id"]}"}
+                        class="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50 active:scale-95"
+                      >
+                        Cancelar
+                      </button>
+                    <% else %>
+                      <button
+                        type="button"
+                        phx-click="place_bid"
+                        phx-value-id_market={rec["id_market"]}
+                        phx-value-id_player={rec["player_id"]}
+                        phx-value-amount={rec["suggested_bid"]}
+                        phx-value-offeree_id={rec["offeree_id"] || ""}
+                        id={"place-bid-#{rec["player_id"]}"}
+                        class="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-sky-600/30 transition hover:bg-sky-500 active:scale-95 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
+                      >
+                        Pujar {money(rec["suggested_bid"])}
+                      </button>
+                    <% end %>
+                  </div>
+                <% end %>
                 <.bid_slider :if={slider?(rec)} id={"bid-slider-#{rec["player_id"]}"} rec={rec} />
               </li>
             </ul>

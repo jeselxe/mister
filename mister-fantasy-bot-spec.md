@@ -475,6 +475,8 @@ Las tareas (`report_actions`) **ya no son una sección aparte**: cada fila de su
 
 **Aceptar oferta** es irreversible, así que pide una segunda pulsación de confirmación ("Confirmar venta por X €") con opción de cancelar; el estado se limpia al recargar ofertas.
 
+**Pujar** por un jugador del mercado también se puede desde el informe (`POST /ajax/bid` con `offeree_id`, `id_market`, `id_player`, `bid` con puntos y `bid_range`): el botón "Pujar X €" pide confirmación y, al enviarse, marca la tarea de puja como hecha. El listado se extrae del detalle (`player.market.id`) y el dueño de `player.owner.id` (vacío en banca).
+
 Las ventas se cruzan con `best_lineup`: un jugador **en venta que es titular** en el mejor once deja de ser "vender" (`verdict: "keep"`), genera una acción `unsell` ("retirar de la venta"), dispara una alerta y fuerza el consejo de cualquier oferta recibida a *rechazar*.
 
 Además, `sell_hints` propone **a quién poner en venta**: jugadores que no están en el mejor once, no están ya listados y no aportan (no puntúan) o pierden valor (`growth_7d` negativo). Los que se revalorizan se mantienen aunque estén en el banquillo. Se muestran con posición, puntos, media, valor, motivo y oferta esperada de la banca, y generan una acción `list` ("poner en venta a X"). El número de pistas se limita a los **huecos libres** de venta (`@max_listed = 5` menos los listados que se mantienen), y `budget_summary.sale_slots` expone `listed`/`max`/`free` para la UI.
