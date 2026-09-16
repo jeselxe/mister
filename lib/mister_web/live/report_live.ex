@@ -40,7 +40,6 @@ defmodule MisterWeb.ReportLive do
       |> assign(:offers, [])
       |> assign(:offers_error, nil)
       |> assign(:confirming, nil)
-      |> assign(:confirming_bid, nil)
       |> assign(:only_bank, true)
 
     socket =
@@ -123,44 +122,34 @@ defmodule MisterWeb.ReportLive do
     {:noreply, assign(socket, :confirming, nil)}
   end
 
-  # Puja por un jugador del mercado. Compromete saldo, así que se pide una
-  # segunda pulsación de confirmación (como aceptar una oferta).
+  # Puja por un jugador del mercado con el importe que marque el deslizador
+  # (el cliente gestiona la confirmación en dos pasos y manda el importe).
   @impl true
   def handle_event("place_bid", params, socket) do
     player_id = String.to_integer(params["id_player"])
 
-    if socket.assigns[:confirming_bid] == player_id do
-      opts =
-        case params["offeree_id"] do
-          v when v in [nil, ""] -> []
-          v -> [offeree_id: String.to_integer(v)]
-        end
-
-      case Mister.Client.place_bid(
-             String.to_integer(params["id_market"]),
-             player_id,
-             String.to_integer(params["amount"]),
-             opts
-           ) do
-        {:ok, :bid} ->
-          {:noreply,
-           socket
-           |> put_flash(:info, "Puja enviada ✅")
-           |> complete_buy_action(player_id)
-           |> assign(:confirming_bid, nil)}
-
-        {:error, reason} ->
-          Logger.error("ReportLive: no se pudo pujar: #{inspect(reason)}")
-          {:noreply, put_flash(socket, :error, "No se pudo enviar la puja")}
+    opts =
+      case params["offeree_id"] do
+        v when v in [nil, ""] -> []
+        v -> [offeree_id: String.to_integer(v)]
       end
-    else
-      {:noreply, assign(socket, :confirming_bid, player_id)}
-    end
-  end
 
-  @impl true
-  def handle_event("cancel_bid", _params, socket) do
-    {:noreply, assign(socket, :confirming_bid, nil)}
+    case Mister.Client.place_bid(
+           String.to_integer(params["id_market"]),
+           player_id,
+           String.to_integer(params["amount"]),
+           opts
+         ) do
+      {:ok, :bid} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Puja enviada ✅")
+         |> complete_buy_action(player_id)}
+
+      {:error, reason} ->
+        Logger.error("ReportLive: no se pudo pujar: #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "No se pudo enviar la puja")}
+    end
   end
 
   # Deniega la oferta y mantiene el jugador a la escucha de nuevas ofertas.
@@ -558,6 +547,9 @@ defmodule MisterWeb.ReportLive do
         phx-hook=".BidSlider"
         phx-update="ignore"
         data-expected={@expected}
+        data-id-market={@rec["id_market"]}
+        data-id-player={@rec["player_id"]}
+        data-offeree-id={@rec["offeree_id"]}
         class="mt-1.5 rounded-lg bg-slate-50 px-2.5 py-2 ring-1 ring-slate-200"
       >
         <input
@@ -584,6 +576,15 @@ defmodule MisterWeb.ReportLive do
             resale_edge(@rec, "optimistic")
           )}
         </p>
+        <button
+          :if={@rec["id_market"]}
+          type="button"
+          data-role="place"
+          id={"place-bid-#{@rec["player_id"]}"}
+          class="mt-2 w-full rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-sky-600/30 transition hover:bg-sky-500 active:scale-95"
+        >
+          Pujar {money(@value)}
+        </button>
       </div>
     </details>
     """

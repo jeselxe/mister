@@ -475,7 +475,7 @@ Las tareas (`report_actions`) **ya no son una sección aparte**: cada fila de su
 
 **Aceptar oferta** es irreversible, así que pide una segunda pulsación de confirmación ("Confirmar venta por X €") con opción de cancelar; el estado se limpia al recargar ofertas.
 
-**Pujar** por un jugador del mercado también se puede desde el informe (`POST /ajax/bid` con `offeree_id`, `id_market`, `id_player`, `bid` con puntos y `bid_range`): el botón "Pujar X €" pide confirmación y, al enviarse, marca la tarea de puja como hecha. El listado se extrae del detalle (`player.market.id`) y el dueño de `player.owner.id` (vacío en banca).
+**Pujar** por un jugador del mercado también se puede desde el informe (`POST /ajax/bid` con `offeree_id`, `id_market`, `id_player`, `bid` con puntos y `bid_range`): el botón "Pujar" vive dentro del desplegable **"ajustar puja"** y puja el importe que marque el deslizador (confirmación en dos pasos en el cliente, vía el hook `pushEvent`); al enviarse marca la tarea de puja como hecha. El listado se extrae del detalle (`player.market.id`) y el dueño de `player.owner.id` (vacío en banca).
 
 Las ventas se cruzan con `best_lineup`: un jugador **en venta que es titular** en el mejor once deja de ser "vender" (`verdict: "keep"`), genera una acción `unsell` ("retirar de la venta"), dispara una alerta y fuerza el consejo de cualquier oferta recibida a *rechazar*.
 

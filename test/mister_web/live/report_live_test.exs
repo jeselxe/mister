@@ -113,16 +113,13 @@ defmodule MisterWeb.ReportLiveTest do
       refute has_element?(view, "#bid-slider-3003")
     end
 
-    test "pide confirmación antes de pujar por un jugador del mercado", %{conn: conn} do
+    test "el botón de pujar vive en el desplegable y usa el importe del slider", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
 
-      # primer clic: pide confirmación, sin llamar a la API
-      view |> element("#place-bid-3001") |> render_click()
-      assert has_element?(view, "#confirm-bid-3001")
-
-      # cancelar vuelve al estado inicial
-      view |> element("#cancel-bid-3001") |> render_click()
-      assert has_element?(view, "#place-bid-3001")
+      # botón dentro del desplegable "ajustar puja" de la fila
+      assert has_element?(view, "#bid-slider-3001 #place-bid-3001", "Pujar 8.400.000 €")
+      # el hook lleva el id del listado y el dueño para poder pujar
+      assert has_element?(view, "#bid-slider-3001[data-id-market='19115043918']")
     end
 
     test "filtra fichajes: solo banca por defecto", %{conn: conn} do

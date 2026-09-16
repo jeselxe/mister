@@ -364,45 +364,6 @@
                     <.action_controls action={@action_map[{"buy", rec["player_id"]}]} />
                   </div>
                 </div>
-                <%= if rec["id_market"] && rec["suggested_bid"] do %>
-                  <div class="mt-1.5 flex flex-wrap items-center justify-end gap-2">
-                    <%= if @confirming_bid == rec["player_id"] do %>
-                      <button
-                        type="button"
-                        phx-click="place_bid"
-                        phx-value-id_market={rec["id_market"]}
-                        phx-value-id_player={rec["player_id"]}
-                        phx-value-amount={rec["suggested_bid"]}
-                        phx-value-offeree_id={rec["offeree_id"] || ""}
-                        id={"confirm-bid-#{rec["player_id"]}"}
-                        class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition hover:bg-emerald-500 active:scale-95 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
-                      >
-                        Confirmar puja {money(rec["suggested_bid"])}
-                      </button>
-                      <button
-                        type="button"
-                        phx-click="cancel_bid"
-                        id={"cancel-bid-#{rec["player_id"]}"}
-                        class="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50 active:scale-95"
-                      >
-                        Cancelar
-                      </button>
-                    <% else %>
-                      <button
-                        type="button"
-                        phx-click="place_bid"
-                        phx-value-id_market={rec["id_market"]}
-                        phx-value-id_player={rec["player_id"]}
-                        phx-value-amount={rec["suggested_bid"]}
-                        phx-value-offeree_id={rec["offeree_id"] || ""}
-                        id={"place-bid-#{rec["player_id"]}"}
-                        class="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-sky-600/30 transition hover:bg-sky-500 active:scale-95 phx-click-loading:pointer-events-none phx-click-loading:opacity-60"
-                      >
-                        Pujar {money(rec["suggested_bid"])}
-                      </button>
-                    <% end %>
-                  </div>
-                <% end %>
                 <.bid_slider :if={slider?(rec)} id={"bid-slider-#{rec["player_id"]}"} rec={rec} />
               </li>
             </ul>
@@ -465,8 +426,11 @@
                     gain: this.el.querySelector('[data-out="gain"]'),
                     pct: this.el.querySelector('[data-out="pct"]'),
                   }
+                  this.button = this.el.querySelector('[data-role="place"]')
+                  this.confirming = false
                   this.fmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 })
                   this.input.addEventListener("input", () => this.render())
+                  if (this.button) this.button.addEventListener("click", () => this.place())
                   this.render()
                 },
                 render() {
@@ -478,6 +442,30 @@
                   this.out.pct.textContent = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`
                   this.out.gain.classList.toggle("text-emerald-600", gain >= 0)
                   this.out.gain.classList.toggle("text-red-600", gain < 0)
+                  if (this.button) {
+                    this.button.textContent = `${this.confirming ? "Confirmar puja" : "Pujar"} ${this.fmt.format(bid)} €`
+                  }
+                },
+                // Primer clic pide confirmación; el segundo envía la puja con el
+                // importe que marca el deslizador.
+                place() {
+                  const amount = Number(this.input.value) || 0
+                  if (!this.confirming) {
+                    this.confirming = true
+                    this.render()
+                    clearTimeout(this.resetTimer)
+                    this.resetTimer = setTimeout(() => { this.confirming = false; this.render() }, 4000)
+                    return
+                  }
+                  this.pushEvent("place_bid", {
+                    id_market: this.el.dataset.idMarket,
+                    id_player: this.el.dataset.idPlayer,
+                    offeree_id: this.el.dataset.offereeId || "",
+                    amount: String(amount),
+                  })
+                  this.confirming = false
+                  clearTimeout(this.resetTimer)
+                  this.render()
                 },
               }
             </script>
